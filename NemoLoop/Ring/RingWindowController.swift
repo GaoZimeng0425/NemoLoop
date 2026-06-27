@@ -26,9 +26,7 @@ final class RingWindowController {
         let local = CGPoint(x: center.x - screen.frame.minX,
                             y: screen.frame.maxY - center.y)
 
-        let host = NSHostingView(
-            rootView: AnyView(content.environment(\.ringCenter, local))
-        )
+        let host = NSHostingView(rootView: content.environment(\.ringCenter, local))
         host.frame = NSRect(origin: .zero, size: screen.frame.size)
         panel.contentView = host
         panel.setFrame(screen.frame, display: true)
