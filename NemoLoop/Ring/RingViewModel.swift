@@ -20,7 +20,7 @@ final class RingViewModel {
         self.isShown = true
         timer?.invalidate()
         let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.sample() }
+            MainActor.assumeIsolated { self?.sample() }
         }
         RunLoop.main.add(t, forMode: .common)
         timer = t
