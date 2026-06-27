@@ -112,6 +112,7 @@
 			);
 			name = NemoLoop;
 			packageProductDependencies = (
+				45EB625D2FF03B8300B4810C /* KeyboardShortcuts */,
 			);
 			productName = NemoLoop;
 			productReference = 45EB620D2FF02BD200B4810C /* NemoLoop.app */;
@@ -195,6 +196,9 @@
 			);
 			mainGroup = 45EB62042FF02BD200B4810C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 45EB620E2FF02BD200B4810C /* Products */;
 			projectDirPath = "";
@@ -573,6 +577,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		45EB625D2FF03B8300B4810C /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 45EB62052FF02BD200B4810C /* Project object */;
 }
