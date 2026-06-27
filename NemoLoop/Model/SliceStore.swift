@@ -29,7 +29,7 @@ final class SliceStore {
 
     func icon(at index: Int) -> NSImage? {
         guard config.slots.indices.contains(index), let url = config.slots[index] else { return nil }
-        return NSWorkspace.shared.icon(forFile: url.path)
+        return NSWorkspace.shared.icon(forFiles: [url.path])
     }
 
     private func persist() {
