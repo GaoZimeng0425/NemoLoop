@@ -7,9 +7,12 @@ struct NemoLoopApp: App {
 
     var body: some Scene {
         MenuBarExtra("NemoLoop", systemImage: "circle.grid.cross") {
-            Button("Settings…") { /* opened in Task 8 */ }
+            SettingsLink { Text("Settings…") }
             Divider()
             Button("Quit NemoLoop") { NSApplication.shared.terminate(nil) }
+        }
+        Settings {
+            SettingsView(store: appDelegate.sliceStore)
         }
     }
 }
