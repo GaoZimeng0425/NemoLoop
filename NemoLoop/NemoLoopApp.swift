@@ -1,32 +1,15 @@
-//
-//  NemoLoopApp.swift
-//  NemoLoop
-//
-//  Created by GaoZimeng on 2026/6/28.
-//
-
+// NemoLoop/NemoLoopApp.swift
 import SwiftUI
-import SwiftData
 
 @main
 struct NemoLoopApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        MenuBarExtra("NemoLoop", systemImage: "circle.grid.cross") {
+            Button("Settings…") { /* opened in Task 8 */ }
+            Divider()
+            Button("Quit NemoLoop") { NSApplication.shared.terminate(nil) }
         }
-        .modelContainer(sharedModelContainer)
     }
 }
