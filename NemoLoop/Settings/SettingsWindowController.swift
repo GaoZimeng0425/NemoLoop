@@ -8,9 +8,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var windowController: NSWindowController?
 
     func show(store: SliceStore) {
+        NSApp.setActivationPolicy(.regular)
+
         if let existing = windowController {
             existing.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            NSApp.activate()
             return
         }
 
@@ -25,14 +27,16 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let wc = NSWindowController(window: window)
         self.windowController = wc
 
-        NSApp.setActivationPolicy(.regular)
         wc.showWindow(nil)
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        NSApp.activate()
     }
 
     func windowWillClose(_ notification: Notification) {
         windowController = nil
-        NSApp.setActivationPolicy(.accessory)
+        DispatchQueue.main.async { [weak self] in
+            if self?.windowController == nil {
+                NSApp.setActivationPolicy(.accessory)
+            }
+        }
     }
 }

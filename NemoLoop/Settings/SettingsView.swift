@@ -13,7 +13,7 @@ struct SettingsView: View {
     private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
 
     var body: some View {
-        LuminarePane("NemoLoop") {
+        LuminarePane("Settings") {
             LuminareSection(
                 "Hotkey",
                 "Hold this hotkey anywhere to summon the ring; release over a wedge to launch."
