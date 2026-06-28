@@ -6,8 +6,8 @@ struct RingView: View {
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
 
-    private let outerRadius: CGFloat = 96
-    private let innerRadius: CGFloat = 40
+    @State private var appeared = false
+
     private let wedgeCount = SliceConfig.wedgeCount
 
     init(store: SliceStore, viewModel: RingViewModel) {
@@ -17,47 +17,105 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
+            backing()
+
             ForEach(0..<wedgeCount, id: \.self) { i in
-                WedgeShape(index: i, count: wedgeCount,
-                           innerRadius: innerRadius, outerRadius: outerRadius)
-                    .fill(fillColor(for: i))
+                wedgeFill(for: i)
                     .overlay(
                         WedgeShape(index: i, count: wedgeCount,
-                                   innerRadius: innerRadius, outerRadius: outerRadius)
-                            .stroke(.white.opacity(0.15), lineWidth: 1)
+                                   innerRadius: RingTheme.innerRadius,
+                                   outerRadius: RingTheme.outerRadius)
+                            .stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
                     )
                 iconView(for: i)
             }
+
+            borders()
         }
-        .frame(width: outerRadius * 2, height: outerRadius * 2)
+        .frame(width: RingTheme.outerRadius * 2, height: RingTheme.outerRadius * 2)
+        .compositingGroup()
+        .shadow(color: RingTheme.shadowColor, radius: RingTheme.shadowRadius)
         .position(center)
-        .animation(.easeOut(duration: 0.12), value: viewModel.highlightedIndex)
+        .animation(RingTheme.highlight, value: viewModel.highlightedIndex)
+        .scaleEffect(appeared ? 1 : 1.2)
+        .opacity(appeared ? 1 : 0)
+        .onAppear {
+            withAnimation(RingTheme.appear) { appeared = true }
+        }
     }
 
-    private func fillColor(for i: Int) -> Color {
-        let isEmpty = store.config.slots[i] == nil
-        if viewModel.highlightedIndex == i {
-            return isEmpty ? Color.white.opacity(0.18) : Color.accentColor.opacity(0.85)
+    // MARK: - Backing material (frosted glass)
+
+    @ViewBuilder
+    private func backing() -> some View {
+        let band = Circle().strokeBorder(lineWidth: RingTheme.outerRadius - RingTheme.innerRadius)
+        if #available(macOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular.tint(RingTheme.accentStart.opacity(0.025)),
+                             in: .circle)
+                .mask(band)
+        } else {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
+                .mask(band)
         }
-        return Color.black.opacity(isEmpty ? 0.35 : 0.6)
     }
+
+    // MARK: - Per-wedge fills
+
+    @ViewBuilder
+    private func wedgeFill(for i: Int) -> some View {
+        let shape = WedgeShape(index: i, count: wedgeCount,
+                               innerRadius: RingTheme.innerRadius,
+                               outerRadius: RingTheme.outerRadius)
+        let isEmpty = store.config.slots[i] == nil
+        let isHot = viewModel.highlightedIndex == i
+
+        if isHot && !isEmpty {
+            shape.fill(RingTheme.accentGradient)
+        } else if isHot {
+            shape.fill(RingTheme.highlightEmpty)
+        } else {
+            shape.fill(isEmpty ? RingTheme.emptyFill : RingTheme.baseFill)
+        }
+    }
+
+    // MARK: - Dual hairline border rims
+
+    @ViewBuilder
+    private func borders() -> some View {
+        ZStack {
+            Circle()
+                .stroke(RingTheme.borderColor, lineWidth: RingTheme.borderWidth)
+                .frame(width: RingTheme.outerRadius * 2,
+                       height: RingTheme.outerRadius * 2)
+            Circle()
+                .stroke(RingTheme.borderColor, lineWidth: RingTheme.borderWidth)
+                .frame(width: RingTheme.innerRadius * 2,
+                       height: RingTheme.innerRadius * 2)
+        }
+    }
+
+    // MARK: - Icons
 
     @ViewBuilder
     private func iconView(for i: Int) -> some View {
-        let midRadius = (innerRadius + outerRadius) / 2
-        // wedge i center angle: 0 = up, clockwise. Convert to view coords (y down).
+        let midRadius = (RingTheme.innerRadius + RingTheme.outerRadius) / 2
         let angle = (Double(i) / Double(wedgeCount)) * 2 * .pi
         let dx = midRadius * sin(angle)
-        let dy = -midRadius * cos(angle) // up = negative y in view space
+        let dy = -midRadius * cos(angle)
+        let x = RingTheme.outerRadius + dx
+        let y = RingTheme.outerRadius + dy
+
         if let icon = store.icon(at: i) {
             Image(nsImage: icon)
                 .resizable()
-                .frame(width: 28, height: 28)
-                .position(x: outerRadius + dx, y: outerRadius + dy)
+                .frame(width: RingTheme.iconSize, height: RingTheme.iconSize)
+                .position(x: x, y: y)
         } else {
             Image(systemName: "plus")
-                .foregroundStyle(.white.opacity(0.3))
-                .position(x: outerRadius + dx, y: outerRadius + dy)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(RingTheme.iconTint.opacity(0.35))
+                .position(x: x, y: y)
         }
     }
 }
