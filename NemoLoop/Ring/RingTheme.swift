@@ -16,10 +16,11 @@ enum RingTheme {
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    // Surfaces / state fills
-    static let baseFill        = Color.black.opacity(0.55)   // assigned, idle
-    static let emptyFill       = Color.black.opacity(0.32)   // empty slot, idle
-    static let highlightEmpty  = Color.white.opacity(0.18)   // empty slot, highlighted
+    // Surfaces / state fills — kept translucent so the frosted glass shows through
+    // (Loop's airiness comes from NOT darkening the ring; only the selected wedge is solid accent).
+    static let baseFill        = Color.white.opacity(0.05)   // assigned, idle — faint glass highlight
+    static let emptyFill       = Color.clear                 // empty slot, idle — pure glass
+    static let highlightEmpty  = Color.white.opacity(0.16)   // empty slot, highlighted
 
     // Borders (Loop's dual quinary hairlines)
     static let borderColor = Color.white.opacity(0.18)       // ≈ .quinary on dark
