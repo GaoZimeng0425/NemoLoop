@@ -20,7 +20,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             SettingsView(store: store)
         }
         window.title = "NemoLoop Settings"
-        window.setContentSize(NSSize(width: 480, height: 460))
+        window.setContentSize(NSSize(width: 680, height: 480))
         window.delegate = self
         window.center()
 
