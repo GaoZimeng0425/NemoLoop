@@ -1,4 +1,5 @@
 // NemoLoop/NemoLoopApp.swift
+import KeyboardShortcuts
 import SwiftUI
 
 @main
@@ -7,6 +8,10 @@ struct NemoLoopApp: App {
 
     var body: some Scene {
         MenuBarExtra("NemoLoop", systemImage: "circle.grid.cross") {
+            if KeyboardShortcuts.getShortcut(for: .summonRing) == nil {
+                Text("Set a summon hotkey in Settings →")
+                Divider()
+            }
             SettingsLink { Text("Settings…") }
             Divider()
             Button("Quit NemoLoop") { NSApplication.shared.terminate(nil) }

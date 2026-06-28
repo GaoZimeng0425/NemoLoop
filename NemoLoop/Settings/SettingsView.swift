@@ -15,6 +15,9 @@ struct SettingsView: View {
         Form {
             Section("Hotkey") {
                 KeyboardShortcuts.Recorder("Summon ring (hold):", name: .summonRing)
+                Text("Hold this hotkey anywhere to summon the ring; release over a wedge to launch.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Wedges") {
                 ForEach(0..<SliceConfig.wedgeCount, id: \.self) { i in
