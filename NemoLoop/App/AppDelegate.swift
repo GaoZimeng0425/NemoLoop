@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let sliceStore = SliceStore()
     let ringController = RingWindowController()
     let ringViewModel = RingViewModel()
+    let settingsWindowController = SettingsWindowController()
     private var hotkeyService: HotkeyService?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
