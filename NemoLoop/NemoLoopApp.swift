@@ -12,12 +12,11 @@ struct NemoLoopApp: App {
                 Text("Set a summon hotkey in Settings →")
                 Divider()
             }
-            SettingsLink { Text("Settings…") }
+            Button("Settings…") {
+                appDelegate.settingsWindowController.show(store: appDelegate.sliceStore)
+            }
             Divider()
             Button("Quit NemoLoop") { NSApplication.shared.terminate(nil) }
-        }
-        Settings {
-            SettingsView(store: appDelegate.sliceStore)
         }
     }
 }

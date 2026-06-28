@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		45EB628A2FF03C1800B4810C /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 45EB625D2FF03B8300B4810C /* KeyboardShortcuts */; };
+		4561FBF12FF1232500A3D272 /* Luminare in Frameworks */ = {isa = PBXBuildFile; productRef = 4561FBF22FF1232500A3D272 /* Luminare */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				45EB628A2FF03C1800B4810C /* KeyboardShortcuts in Frameworks */,
+				4561FBF12FF1232500A3D272 /* Luminare in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			name = NemoLoop;
 			packageProductDependencies = (
 				45EB625D2FF03B8300B4810C /* KeyboardShortcuts */,
+				4561FBF22FF1232500A3D272 /* Luminare */,
 			);
 			productName = NemoLoop;
 			productReference = 45EB620D2FF02BD200B4810C /* NemoLoop.app */;
@@ -608,6 +611,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
 			productName = KeyboardShortcuts;
+		};
+		4561FBF22FF1232500A3D272 /* Luminare */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 4561FBF02FF1232500A3D272 /* XCRemoteSwiftPackageReference "Luminare" */;
+			productName = Luminare;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

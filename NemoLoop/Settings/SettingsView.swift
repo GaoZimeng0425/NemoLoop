@@ -1,6 +1,7 @@
 // NemoLoop/Settings/SettingsView.swift
 import AppKit
 import KeyboardShortcuts
+import Luminare
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -12,31 +13,48 @@ struct SettingsView: View {
     private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
 
     var body: some View {
-        Form {
-            Section("Hotkey") {
-                KeyboardShortcuts.Recorder("Summon ring (hold):", name: .summonRing)
-                Text("Hold this hotkey anywhere to summon the ring; release over a wedge to launch.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        LuminarePane("NemoLoop") {
+            LuminareSection(
+                "Hotkey",
+                "Hold this hotkey anywhere to summon the ring; release over a wedge to launch."
+            ) {
+                LuminareCompose("Summon ring (hold):") {
+                    KeyboardShortcuts.Recorder("", name: .summonRing)
+                }
             }
-            Section("Wedges") {
+
+            LuminareSection("Wedges") {
                 ForEach(0..<SliceConfig.wedgeCount, id: \.self) { i in
-                    HStack {
-                        if let icon = store.icon(at: i) {
-                            Image(nsImage: icon).resizable().frame(width: 22, height: 22)
-                        } else {
-                            Image(systemName: "app.dashed").frame(width: 22, height: 22)
+                    LuminareCompose(alignment: .center) {
+                        HStack(spacing: 6) {
+                            Button("Choose…") { chooseApp(for: i) }
+                                .buttonStyle(.luminareCompact)
+                            Button("Clear") { store.setSlot(nil, at: i) }
+                                .buttonStyle(.luminareCompact)
+                                .disabled(store.config.slots[i] == nil)
                         }
-                        Text(label(for: i)).frame(maxWidth: .infinity, alignment: .leading)
-                        Button("Choose…") { chooseApp(for: i) }
-                        Button("Clear") { store.setSlot(nil, at: i) }
-                            .disabled(store.config.slots[i] == nil)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Group {
+                                if let icon = store.icon(at: i) {
+                                    Image(nsImage: icon)
+                                        .resizable()
+                                        .interpolation(.high)
+                                } else {
+                                    Image(systemName: "app.dashed")
+                                        .resizable()
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(width: 22, height: 22)
+                            Text(label(for: i))
+                        }
                     }
                 }
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 460, height: 380)
+        .luminarePaneLayout(.stacked)
+        .luminareTint(overridingWith: .accentColor)
     }
 
     private func label(for i: Int) -> String {
