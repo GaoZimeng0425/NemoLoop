@@ -53,7 +53,6 @@ struct SettingsView: View {
             }
             .luminarePaneLayout(.stacked)
         }
-        .padding(.top, 28) // clear the transparent titlebar (fullSizeContentView)
         .animation(.smooth(duration: 0.25), value: chrome.sidebarVisible)
         .luminareTint(overridingWith: .accentColor)
     }
