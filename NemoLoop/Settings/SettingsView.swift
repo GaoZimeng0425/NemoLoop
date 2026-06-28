@@ -32,23 +32,47 @@ enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
 
 struct SettingsView: View {
     @Bindable var store: SliceStore
+    @Bindable var chrome: SettingsChrome
     @State private var tab: SettingsTab = .ring
 
-    init(store: SliceStore) { self._store = Bindable(store) }
+    init(store: SliceStore, chrome: SettingsChrome) {
+        self._store = Bindable(store)
+        self._chrome = Bindable(chrome)
+    }
 
     private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
 
     var body: some View {
-        LuminareDividedStack {
-            LuminareSidebar {
-                LuminareSidebarSection("Settings", selection: $tab, items: SettingsTab.allCases)
+        HStack(spacing: 0) {
+            if chrome.sidebarVisible {
+                sidebarCard
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
             LuminarePane(tab.title) {
                 paneContent
             }
             .luminarePaneLayout(.stacked)
         }
+        .padding(.top, 28) // clear the transparent titlebar (fullSizeContentView)
+        .animation(.smooth(duration: 0.25), value: chrome.sidebarVisible)
         .luminareTint(overridingWith: .accentColor)
+    }
+
+    /// A floating, rounded sidebar card (inset with padding + shadow) rather than a flush edge sidebar.
+    private var sidebarCard: some View {
+        LuminareSidebar {
+            LuminareSidebarSection("Settings", selection: $tab, items: SettingsTab.allCases)
+        }
+        .frame(width: 200)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+        )
+        .padding(.leading, 12)
+        .padding(.trailing, 4)
+        .padding(.bottom, 12)
+        .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 4)
     }
 
     // MARK: - Panes
