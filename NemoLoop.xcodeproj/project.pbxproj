@@ -203,6 +203,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				4561FBF02FF1232500A3D272 /* XCRemoteSwiftPackageReference "Luminare" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 45EB620E2FF02BD200B4810C /* Products */;
@@ -584,6 +585,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		4561FBF02FF1232500A3D272 /* XCRemoteSwiftPackageReference "Luminare" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MrKai77/Luminare";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.2.0;
+			};
+		};
 		45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";

@@ -1,0 +1,42 @@
+{
+  "originHash" : "6c73579433306628c34afa824cd7db7e80813fad8a4abea89a3e75a5c678e6eb",
+  "pins" : [
+    {
+      "identity" : "keyboardshortcuts",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/KeyboardShortcuts",
+      "state" : {
+        "revision" : "49c3fc04ea827f816df67843bfcc57286b47ff06",
+        "version" : "3.0.1"
+      }
+    },
+    {
+      "identity" : "luminare",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/MrKai77/Luminare",
+      "state" : {
+        "revision" : "d8fc61c831aff8a581deac00c89aa724cc32decd",
+        "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "swiftui-introspect",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/siteline/swiftui-introspect",
+      "state" : {
+        "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336",
+        "version" : "1.3.0"
+      }
+    },
+    {
+      "identity" : "swiftui-variadic-views",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/lorenzofiamingo/swiftui-variadic-views",
+      "state" : {
+        "revision" : "af67d0e85bd2b499fbfb4cda834117e7c52b12b0",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
