@@ -36,7 +36,9 @@ enum RingTheme {
     static let shadowColor = Color.black.opacity(0.22)
 
     // Motion
+    // Pop-in (1.2→1 scale + fade) is driven by RingView's local `appeared` @State on .onAppear,
+    // not a transition — the panel hosts the view only after viewModel.isShown is already true,
+    // so an AnyTransition would never animate. `appear` is that pop-in curve.
     static let appear    = Animation.smooth(duration: 0.16)
     static let highlight = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.16)
-    static let popIn     = AnyTransition.scale(scale: 1.2).combined(with: .opacity)
 }
