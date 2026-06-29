@@ -9,8 +9,15 @@ final class SliceStore {
     private let defaults: UserDefaults
 
     var config: SliceConfig {
-        didSet { persist() }
+        didSet { persist(); rebuildIcons() }
     }
+
+    /// Cached file icons, rebuilt only when `config` changes. `NSWorkspace.icon(forFile:)`
+    /// returns a new `NSImage` on every call, so resolving icons inside `RingView.body`
+    /// gave every render a fresh image identity — turning each hover-driven re-evaluation
+    /// into an animated icon swap (the visible "all icons flicker" on wedge crossings).
+    /// Caching keeps icon identity stable across re-renders so only the highlighted wedge animates.
+    private(set) var icons: [NSImage?] = []
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -20,6 +27,7 @@ final class SliceStore {
         } else {
             self.config = .empty
         }
+        rebuildIcons()
     }
 
     func setSlot(_ url: URL?, at index: Int) {
@@ -28,8 +36,13 @@ final class SliceStore {
     }
 
     func icon(at index: Int) -> NSImage? {
-        guard config.slots.indices.contains(index), let url = config.slots[index] else { return nil }
-        return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
+        icons.indices.contains(index) ? icons[index] : nil
+    }
+
+    private func rebuildIcons() {
+        icons = config.slots.map { url in
+            url.map { NSWorkspace.shared.icon(forFile: $0.path(percentEncoded: false)) }
+        }
     }
 
     private func persist() {
