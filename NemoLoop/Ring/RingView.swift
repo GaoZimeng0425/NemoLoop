@@ -55,15 +55,28 @@ struct RingView: View {
         let isHot = viewModel.highlightedIndex == i
 
         ZStack {
-            shape.fill(RingTheme.backgroundColor)   // per-wedge background
+            wedgeBacking(shape)   // per-wedge frosted glass
 
             if isHot && !isEmpty {
                 shape.fill(RingTheme.accentGradient)
             } else if isHot {
                 shape.fill(RingTheme.highlightEmpty)
             } else if !isEmpty {
-                shape.fill(RingTheme.backgroundColor)
+                shape.fill(RingTheme.baseFill)
             }
+        }
+    }
+
+    // Frosted-glass backing for a single wedge, masked to its shape.
+    @ViewBuilder
+    private func wedgeBacking(_ shape: WedgeShape) -> some View {
+        if #available(macOS 26.0, *) {
+            Color.clear
+                .glassEffect(.regular.tint(RingTheme.glassTint), in: shape)
+        } else {
+            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
+                .clipShape(shape)
+                .overlay(shape.fill(RingTheme.glassTint))
         }
     }
 

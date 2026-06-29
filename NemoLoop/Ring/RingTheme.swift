@@ -17,12 +17,12 @@ enum RingTheme {
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
-    // Background band behind the wedge fan (shows through the inter-wedge gaps)
-    static let backgroundColor = Color.black.opacity(0.35)
+    // Per-wedge frosted-glass backing: a darkening tint over the blur so wedges
+    // stay legible on any wallpaper (each wedge is masked to its own shape).
+    static let glassTint = Color.black.opacity(0.28)
 
-    // Surfaces / state fills — kept translucent so the frosted glass shows through
-    // (Loop's airiness comes from NOT darkening the ring; only the selected wedge is solid accent).
-    static let baseFill        = Color.white.opacity(0.05)   // assigned, idle — faint glass highlight
+    // Surfaces / state fills — translucent so the frosted glass shows through.
+    static let baseFill        = Color.white.opacity(0.05)   // assigned, idle — visible tint over glass
     static let highlightEmpty  = Color.white.opacity(0.16)   // empty slot, highlighted
 
     // Borders (Loop's dual quinary hairlines)
