@@ -20,7 +20,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let window = LuminareWindow {
             SettingsView(store: store, chrome: self.chrome)
         }
-        window.title = "NemoLoop Settings"
+        window.title = "Settings"
         window.setContentSize(NSSize(width: 680, height: 480))
         window.delegate = self
         window.center()

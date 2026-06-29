@@ -60,7 +60,8 @@ struct SettingsView: View {
     /// A floating, rounded sidebar card (inset with padding + shadow) rather than a flush edge sidebar.
     private var sidebarCard: some View {
         LuminareSidebar {
-            LuminareSidebarSection("Settings", selection: $tab, items: SettingsTab.allCases)
+            LuminareSidebarSection(selection: $tab, items: SettingsTab.allCases)
+              .padding(.vertical, 12)
         }
         .frame(width: 200)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
