@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		45EB628A2FF03C1800B4810C /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 45EB625D2FF03B8300B4810C /* KeyboardShortcuts */; };
 		4561FBF12FF1232500A3D272 /* Luminare in Frameworks */ = {isa = PBXBuildFile; productRef = 4561FBF22FF1232500A3D272 /* Luminare */; };
+		45EB628A2FF03C1800B4810C /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 45EB625D2FF03B8300B4810C /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -607,15 +607,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		45EB625D2FF03B8300B4810C /* KeyboardShortcuts */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
-			productName = KeyboardShortcuts;
-		};
 		4561FBF22FF1232500A3D272 /* Luminare */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 4561FBF02FF1232500A3D272 /* XCRemoteSwiftPackageReference "Luminare" */;
 			productName = Luminare;
+		};
+		45EB625D2FF03B8300B4810C /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 45EB625C2FF03B8300B4810C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
