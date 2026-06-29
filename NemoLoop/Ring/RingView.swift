@@ -62,7 +62,7 @@ struct RingView: View {
             } else if isHot {
                 shape.fill(RingTheme.highlightEmpty)
             } else if !isEmpty {
-                shape.fill(RingTheme.baseFill)
+                shape.fill(RingTheme.backgroundColor)
             }
         }
     }
