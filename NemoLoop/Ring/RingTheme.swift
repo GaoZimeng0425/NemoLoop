@@ -6,7 +6,8 @@ enum RingTheme {
     static let outerRadius: CGFloat = 96
     static let innerRadius: CGFloat = 40          // band thickness = 56
     static let canvasPadding: CGFloat = 40        // shadow/pop-in headroom
-    static let wedgeGap: Angle = .degrees(1.5)    // hairline gap between wedges
+    static let wedgeGap: CGFloat = 4              // perpendicular gap (points) between wedges
+    static let wedgeCornerRadius: CGFloat = 10    // fillet on each wedge's 4 corners
 
     // Accent gradient (Loop's color1 → color2, diagonal)
     static let accentStart = Color.accentColor
@@ -16,10 +17,12 @@ enum RingTheme {
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    // Background band behind the wedge fan (shows through the inter-wedge gaps)
+    static let backgroundColor = Color.black.opacity(0.35)
+
     // Surfaces / state fills — kept translucent so the frosted glass shows through
     // (Loop's airiness comes from NOT darkening the ring; only the selected wedge is solid accent).
     static let baseFill        = Color.white.opacity(0.05)   // assigned, idle — faint glass highlight
-    static let emptyFill       = Color.clear                 // empty slot, idle — pure glass
     static let highlightEmpty  = Color.white.opacity(0.16)   // empty slot, highlighted
 
     // Borders (Loop's dual quinary hairlines)
