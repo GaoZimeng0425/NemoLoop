@@ -17,6 +17,8 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
+            ringBacking   // one continuous frosted-glass annulus beneath all wedges
+
             ForEach(0..<wedgeCount, id: \.self) { i in
                 wedgeFill(for: i)
                     .overlay(
@@ -54,29 +56,31 @@ struct RingView: View {
         let isEmpty = store.config.slots[i] == nil
         let isHot = viewModel.highlightedIndex == i
 
-        ZStack {
-            wedgeBacking(shape)   // per-wedge frosted glass
-
-            if isHot && !isEmpty {
-                shape.fill(RingTheme.accentGradient)
-            } else if isHot {
-                shape.fill(RingTheme.highlightEmpty)
-            } else if !isEmpty {
-                shape.fill(RingTheme.baseFill)
-            }
+        // Frosted glass is supplied by the continuous `ringBacking` beneath; each wedge
+        // only paints its state tint. Unassigned-idle wedges stay transparent so the
+        // shared annulus shows through — the gaps read as notches on one ring.
+        if isHot && !isEmpty {
+            shape.fill(RingTheme.accentGradient)
+        } else if isHot {
+            shape.fill(RingTheme.highlightEmpty)
+        } else if !isEmpty {
+            shape.fill(RingTheme.baseFill)
         }
     }
 
-    // Frosted-glass backing for a single wedge, masked to its shape.
+    // One continuous frosted-glass annulus behind all wedges; the inter-wedge gaps
+    // reveal it, so the six wedges read as sitting on a single ring.
     @ViewBuilder
-    private func wedgeBacking(_ shape: WedgeShape) -> some View {
+    private var ringBacking: some View {
+        let ring = AnnulusShape(innerRadius: RingTheme.innerRadius,
+                                outerRadius: RingTheme.outerRadius)
         if #available(macOS 26.0, *) {
             Color.clear
-                .glassEffect(.regular.tint(RingTheme.glassTint), in: shape)
+                .glassEffect(.regular.tint(RingTheme.glassTint), in: ring)
         } else {
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
-                .clipShape(shape)
-                .overlay(shape.fill(RingTheme.glassTint))
+                .clipShape(ring)
+                .overlay(ring.fill(RingTheme.glassTint))
         }
     }
 
@@ -102,6 +106,30 @@ struct RingView: View {
                 .foregroundStyle(RingTheme.iconTint.opacity(0.35))
                 .position(x: x, y: y)
         }
+    }
+}
+
+/// A full donut (annulus): the band between `innerRadius` and `outerRadius`, filled with
+/// the even-odd rule so the inner disc is punched out. Used as the continuous backing the
+/// wedges sit on.
+struct AnnulusShape: Shape {
+    let innerRadius: CGFloat
+    let outerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        var p = Path()
+        // Opposite winding directions so the inner disc is punched out under the default
+        // non-zero fill rule (glassEffect(in:) / clipShape both use non-zero).
+        p.move(to: CGPoint(x: c.x + outerRadius, y: c.y))
+        p.addArc(center: c, radius: outerRadius, startAngle: .zero,
+                 endAngle: .radians(2 * .pi), clockwise: false)
+        p.closeSubpath()
+        p.move(to: CGPoint(x: c.x + innerRadius, y: c.y))
+        p.addArc(center: c, radius: innerRadius, startAngle: .zero,
+                 endAngle: .radians(2 * .pi), clockwise: true)
+        p.closeSubpath()
+        return p
     }
 }
 
