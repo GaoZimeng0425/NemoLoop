@@ -2,16 +2,18 @@
 import SwiftUI
 
 struct RingView: View {
-    let store: SliceStore
+    /// One entry per wedge; `nil` renders an empty slot (a "+" glyph). `icons.count`
+    /// drives the wedge count, so the ring is fully dynamic.
+    let icons: [NSImage?]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
 
     @State private var appeared = false
 
-    private let wedgeCount = SliceConfig.wedgeCount
+    private var wedgeCount: Int { icons.count }
 
-    init(store: SliceStore, viewModel: RingViewModel) {
-        self.store = store
+    init(icons: [NSImage?], viewModel: RingViewModel) {
+        self.icons = icons
         self._viewModel = Bindable(viewModel)
     }
 
@@ -53,7 +55,7 @@ struct RingView: View {
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.wedgeCornerRadius,
                                gap: RingTheme.wedgeGap)
-        let isEmpty = store.config.slots[i] == nil
+        let isEmpty = icons[i] == nil
         let isHot = viewModel.highlightedIndex == i
 
         // Frosted glass is supplied by the continuous `ringBacking` beneath; each wedge
@@ -95,7 +97,7 @@ struct RingView: View {
         let x = RingTheme.outerRadius + dx
         let y = RingTheme.outerRadius + dy
 
-        if let icon = store.icon(at: i) {
+        if let icon = icons[i] {
             Image(nsImage: icon)
                 .resizable()
                 .frame(width: RingTheme.iconSize, height: RingTheme.iconSize)
