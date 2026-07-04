@@ -94,6 +94,9 @@ struct SettingsView: View {
             LuminareCompose("Summon ring (hold):") {
                 KeyboardShortcuts.Recorder("", name: .summonRing)
             }
+            LuminareCompose("Open apps (hold):") {
+                KeyboardShortcuts.Recorder("", name: .summonRunningApps)
+            }
         }
 
         LuminareSection("Wedges") {
