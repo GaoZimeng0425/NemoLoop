@@ -9,6 +9,13 @@ enum RingTheme {
     static let wedgeGap: CGFloat = 4              // perpendicular gap (points) between wedges
     static let wedgeCornerRadius: CGFloat = 10    // fillet on each wedge's 4 corners
 
+    // The continuous frosted-glass ring extends past the wedge band on both edges, so a
+    // margin of glass shows inside the inner hole and outside the outer rim — the wedges
+    // float within the ring instead of filling it edge-to-edge.
+    static let ringBackingGap: CGFloat = 8        // radial margin between wedges and ring edges
+    static var ringBackingInner: CGFloat { innerRadius - ringBackingGap }
+    static var ringBackingOuter: CGFloat { outerRadius + ringBackingGap }
+
     // Accent gradient (Loop's color1 → color2, diagonal)
     static let accentStart = Color.accentColor
     static let accentEnd   = Color.accentColor.mix(with: .blue, by: 0.45)

@@ -72,8 +72,8 @@ struct RingView: View {
     // reveal it, so the six wedges read as sitting on a single ring.
     @ViewBuilder
     private var ringBacking: some View {
-        let ring = AnnulusShape(innerRadius: RingTheme.innerRadius,
-                                outerRadius: RingTheme.outerRadius)
+        let ring = AnnulusShape(innerRadius: RingTheme.ringBackingInner,
+                                outerRadius: RingTheme.ringBackingOuter)
         if #available(macOS 26.0, *) {
             Color.clear
                 .glassEffect(.regular.tint(RingTheme.glassTint), in: ring)
