@@ -1,2 +1,5 @@
 # Claude Code worktree artifacts (transient nested checkouts)
 .claude/worktrees/
+
+# Per-user Xcode state (window layout, breakpoints, scheme selection)
+xcuserdata/
