@@ -225,4 +225,4 @@ The pop-in needs the ring to be conditionally inserted (`if viewModel.isShown`) 
 
 - **Fill-and-mask construction** — we draw explicit `WedgeShape` sectors instead, because each NemoLoop wedge is an independent content slot (its own app + icon + state), which the single-mask approach can't express cleanly.
 - **Rounded-square variant** (`DirectionSelectorSquareSegment`) — optional future token (`cornerRadius`), not in scope.
-- **8-direction / 45° geometry** — NemoLoop is fixed at 6 wedges / 60° (see `RingGeometry`).
+- **Loop's closed full-circle geometry** — NemoLoop's ring is an **open arc** (Dory-style C-shape): wedges share a 300° arc with a fixed 60° gap at 10:30, so the ring reads as broken rather than closed (see `RingTheme.arc*Degrees`, `RingGeometry.arcStart/arcSpan`, and the spec `docs/superpowers/specs/2026-08-30-open-arc-ring-design.md`).

@@ -9,6 +9,13 @@ enum RingTheme {
     static let wedgeGap: CGFloat = 4              // perpendicular gap (points) between wedges
     static let wedgeCornerRadius: CGFloat = 10    // fillet on each wedge's 4 corners
 
+    // Open-arc geometry (Dory-style C-shape): wedges share an arc with a fixed gap at
+    // 10:30. Angles use the from-up convention (0° = up, clockwise positive).
+    static let arcGapCenterDegrees: Double = -45               // 10:30 direction
+    static let arcGapSpanDegrees: Double = 60
+    static var arcSpanDegrees: Double { 360 - arcGapSpanDegrees }                       // 300°
+    static var arcStartDegrees: Double { arcGapCenterDegrees + arcGapSpanDegrees / 2 }  // -15°
+
     // The continuous frosted-glass ring extends past the wedge band on both edges, so a
     // margin of glass shows inside the inner hole and outside the outer rim — the wedges
     // float within the ring instead of filling it edge-to-edge.

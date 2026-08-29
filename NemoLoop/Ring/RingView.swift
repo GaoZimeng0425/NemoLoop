@@ -12,6 +12,10 @@ struct RingView: View {
 
     private var wedgeCount: Int { icons.count }
 
+    // The wedge arc in SwiftUI's path angle convention (from-up → path: −π/2).
+    private var arcStartPath: Double { RingGeometry.arcStart - .pi / 2 }
+    private var arcSpanPath: Double { RingGeometry.arcSpan }
+
     init(icons: [NSImage?], viewModel: RingViewModel) {
         self.icons = icons
         self._viewModel = Bindable(viewModel)
@@ -28,7 +32,9 @@ struct RingView: View {
                                    innerRadius: RingTheme.innerRadius,
                                    outerRadius: RingTheme.outerRadius,
                                    cornerRadius: RingTheme.wedgeCornerRadius,
-                                   gap: RingTheme.wedgeGap)
+                                   gap: RingTheme.wedgeGap,
+                                   startAngle: arcStartPath,
+                                   span: arcSpanPath)
                             .stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
                     )
                 iconView(for: i)
@@ -54,7 +60,9 @@ struct RingView: View {
                                innerRadius: RingTheme.innerRadius,
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.wedgeCornerRadius,
-                               gap: RingTheme.wedgeGap)
+                               gap: RingTheme.wedgeGap,
+                               startAngle: arcStartPath,
+                               span: arcSpanPath)
         let isEmpty = icons[i] == nil
         let isHot = viewModel.highlightedIndex == i
 
@@ -70,12 +78,14 @@ struct RingView: View {
         }
     }
 
-    // One continuous frosted-glass annulus behind all wedges; the inter-wedge gaps
-    // reveal it, so the six wedges read as sitting on a single ring.
+    // One continuous frosted-glass band behind all wedges, following the same open
+    // arc; the inter-wedge gaps reveal it, so the wedges read as sitting on one band.
     @ViewBuilder
     private var ringBacking: some View {
-        let ring = AnnulusShape(innerRadius: RingTheme.ringBackingInner,
-                                outerRadius: RingTheme.ringBackingOuter)
+        let ring = ArcBandShape(innerRadius: RingTheme.ringBackingInner,
+                                outerRadius: RingTheme.ringBackingOuter,
+                                startAngle: arcStartPath,
+                                span: arcSpanPath)
         if #available(macOS 26.0, *) {
             Color.clear
                 .glassEffect(.regular.tint(RingTheme.glassTint), in: ring)
@@ -91,7 +101,8 @@ struct RingView: View {
     @ViewBuilder
     private func iconView(for i: Int) -> some View {
         let midRadius = (RingTheme.innerRadius + RingTheme.outerRadius) / 2
-        let angle = (Double(i) / Double(wedgeCount)) * 2 * .pi
+        let slice = RingGeometry.arcSpan / Double(wedgeCount)
+        let angle = RingGeometry.arcStart + slice / 2 + Double(i) * slice
         let dx = midRadius * sin(angle)
         let dy = -midRadius * cos(angle)
         let x = RingTheme.outerRadius + dx
@@ -111,31 +122,33 @@ struct RingView: View {
     }
 }
 
-/// A full donut (annulus): the band between `innerRadius` and `outerRadius`, filled with
-/// the even-odd rule so the inner disc is punched out. Used as the continuous backing the
-/// wedges sit on.
-struct AnnulusShape: Shape {
+/// A C-shaped band: the area swept by an arc at the band's mid radius, stroked with
+/// `outerRadius − innerRadius` width and butt caps — i.e. the annular sector between
+/// the two radii over [startAngle, startAngle + span], with flat radial ends. Used as
+/// the continuous backing the wedges sit on. Butt caps (not round) on purpose: the
+/// band is thick, so a round cap's angular reach (≈ asin(capR/midR) ≈ ±32°) would
+/// swallow the 60° gap between the arc's ends.
+struct ArcBandShape: Shape {
     let innerRadius: CGFloat
     let outerRadius: CGFloat
+    var startAngle: Double
+    var span: Double
 
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
-        var p = Path()
-        // Opposite winding directions so the inner disc is punched out under the default
-        // non-zero fill rule (glassEffect(in:) / clipShape both use non-zero).
-        p.move(to: CGPoint(x: c.x + outerRadius, y: c.y))
-        p.addArc(center: c, radius: outerRadius, startAngle: .zero,
-                 endAngle: .radians(2 * .pi), clockwise: false)
-        p.closeSubpath()
-        p.move(to: CGPoint(x: c.x + innerRadius, y: c.y))
-        p.addArc(center: c, radius: innerRadius, startAngle: .zero,
-                 endAngle: .radians(2 * .pi), clockwise: true)
-        p.closeSubpath()
-        return p
+        let midRadius = (Double(innerRadius) + Double(outerRadius)) / 2
+        var arc = Path()
+        arc.addArc(center: c, radius: midRadius,
+                   startAngle: .radians(startAngle),
+                   endAngle: .radians(startAngle + span),
+                   clockwise: false)
+        return arc.strokedPath(StrokeStyle(lineWidth: outerRadius - innerRadius, lineCap: .butt))
     }
 }
 
-/// A donut wedge (annular sector) for index `i` of `count`, centered on up, clockwise.
+/// A donut wedge (annular sector) for index `i` of `count`. The wedges evenly divide
+/// `span` (SwiftUI angle convention: 0 = +x, y down, clockwise) starting at
+/// `startAngle` — wedge 0 spans [startAngle, startAngle + span/count].
 /// `cornerRadius` rounds the four corners with circular fillets while keeping the
 /// outer/inner arcs and straight radial edges exact. `gap` (points) is the total
 /// perpendicular separation left between neighbouring wedges — each radial edge is
@@ -148,13 +161,13 @@ struct WedgeShape: Shape {
     let outerRadius: CGFloat
     var cornerRadius: CGFloat = 0
     var gap: CGFloat = 0
+    var startAngle: Double
+    var span: Double
 
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
-        let slice = 2 * Double.pi / Double(count)
-        // SwiftUI angles: 0° = +x (right), increasing clockwise (y down).
-        // Wedge 0 centered on up (= -90° / 270°).
-        let centerAngle = -Double.pi / 2 + Double(index) * slice
+        let slice = span / Double(count)
+        let centerAngle = startAngle + slice / 2 + Double(index) * slice
         let theta0 = centerAngle - slice / 2   // a0-side boundary ray
         let theta1 = centerAngle + slice / 2   // a1-side boundary ray
         let R = Double(outerRadius)
