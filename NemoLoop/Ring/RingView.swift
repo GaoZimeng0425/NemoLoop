@@ -12,15 +12,13 @@ struct RingView: View {
 
     private var bladeCount: Int { icons.count }
 
+    /// Angular layout shared with hit testing — fixed-width blades over less than a
+    /// full circle, leaving the wrap gap between the last blade and the first.
+    private var layout: BladeLayout { BladeLayout.forCount(bladeCount) }
+
     init(icons: [NSImage?], viewModel: RingViewModel) {
         self.icons = icons
         self._viewModel = Bindable(viewModel)
-    }
-
-    /// Blade width: a multiple of the slot pitch so neighbours overlap (each blade
-    /// tucks under the previous one), capped for tiny counts.
-    private var bladeDegrees: Double {
-        min(360 / Double(bladeCount) * RingTheme.bladeOverlapFactor, RingTheme.maxBladeDegrees)
     }
 
     private var frameRadius: CGFloat {
@@ -29,9 +27,9 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
-            // Ascending index order: each blade covers its counterclockwise neighbour,
-            // so the last blade overlaps the first at the wrap — no seam anomaly at the
-            // top slot.
+            // Ascending index order: each blade covers its counterclockwise neighbour.
+            // The fan spans less than 360°, so the last blade stops short of the first
+            // — the wrap gap means no blade ever covers two neighbours.
             ForEach(0..<bladeCount, id: \.self) { i in
                 bladeView(for: i)
             }
@@ -52,9 +50,9 @@ struct RingView: View {
         }
     }
 
-    /// Slot-center angle (from-up convention, clockwise) of blade `i`.
+    /// Slot-center angle (from-up convention, clockwise, radians) of blade `i`.
     private func slotAngle(_ i: Int) -> Double {
-        2 * .pi * Double(i) / Double(bladeCount)
+        layout.centerAngle(i) * .pi / 180
     }
 
     private func bladeCenter(for i: Int) -> CGPoint {
@@ -76,7 +74,7 @@ struct RingView: View {
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.bladeCornerRadius,
                                startAngle: -.pi / 2 - .pi / Double(bladeCount),
-                               bladeWidth: bladeDegrees * .pi / 180)
+                               bladeWidth: layout.bladeWidth * .pi / 180)
         let isEmpty = icons[i] == nil
         let isHot = viewModel.highlightedIndex == i
         let theta = slotAngle(i)
