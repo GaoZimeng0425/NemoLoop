@@ -10,8 +10,8 @@ enum RingTheme {
     static let bladeCornerRadius: CGFloat = 10    // fillet on each blade's 4 corners
     static let bladeDegrees: Double = 30          // fixed angular width of every blade
     static let arcGapDegrees: Double = 30         // min wrap gap between the last blade and the first
-    static let blade3DTiltDegrees: Double = 20    // per-blade 3D lean about its tangential axis
-    static let blade3DPerspective: CGFloat = 0.75 // lower = stronger near-big-far-small
+    static let blade3DTiltDegrees: Double = 0     // v5.2: flat — 3D tilt rendered wrong in-app twice (ring-centre and icon-centre pivots); BladeTilt only mounts at non-zero
+    static let blade3DPerspective: CGFloat = 0.75 // lower = stronger near-big-far-small (unused while tilt is 0)
     static let popOffset: CGFloat = 6             // selected blade slides outward
     static let shadowPad: CGFloat = 14            // frame headroom for pop + shadow
 

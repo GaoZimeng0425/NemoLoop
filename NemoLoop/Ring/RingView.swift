@@ -97,16 +97,11 @@ struct RingView: View {
         // Per-blade drop shadow: each blade casts onto the one beneath it, making the
         // overlap cascade legible (Dory's look).
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
-        // 3D lean about the tangential axis THROUGH the icon centre (radial =
-        // (sin θ, −cos θ), tangential ⊥ radial = (cos θ, sin θ), y down). Anchoring
-        // on the icon keeps it exactly on its slot: with the default centre anchor
-        // the axis passed through the ring centre and the perspective flung logos
-        // off their blades. The band foreshortens around the logo — near big, far
-        // small — no 2D rotation involved.
-        .rotation3DEffect(.degrees(RingTheme.blade3DTiltDegrees),
-                          axis: (x: cos(theta), y: sin(theta), z: 0),
-                          anchor: UnitPoint(x: iconCenter.x / side, y: iconCenter.y / side),
-                          perspective: RingTheme.blade3DPerspective)
+        // 3D lean about the tangential axis through the icon centre — only mounted
+        // when the tilt token is non-zero. Two pivot attempts (ring centre, icon
+        // centre) both rendered wrong in the real app, so v5.2 ships flat; the
+        // anchor math is kept so a retry is a one-token change.
+        .modifier(BladeTilt(theta: theta, side: side, iconCenter: iconCenter))
         // Selected blade slides outward along its slot bisector.
         .position(x: frameRadius + (isHot ? RingTheme.popOffset * sin(theta) : 0),
                   y: frameRadius - (isHot ? RingTheme.popOffset * cos(theta) : 0))
@@ -124,6 +119,32 @@ struct RingView: View {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(RingTheme.iconTint.opacity(0.35))
+        }
+    }
+}
+
+/// Per-blade 3D tilt, applied only when `RingTheme.blade3DTiltDegrees` is non-zero.
+/// Skipping the modifier entirely at 0° keeps the flat render on the exact code
+/// path that was pixel-verified (no identity-transform layer in between).
+private struct BladeTilt: ViewModifier {
+    let theta: Double
+    let side: CGFloat
+    let iconCenter: CGPoint
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if RingTheme.blade3DTiltDegrees == 0 {
+            content
+        } else {
+            // Axis = the blade's tangential direction, anchored at the mid-band icon
+            // centre so the logo stays on its slot (default .centre pivots at the
+            // canvas centre = ring centre and the perspective flings the logo off).
+            content.rotation3DEffect(
+                .degrees(RingTheme.blade3DTiltDegrees),
+                axis: (x: cos(theta), y: sin(theta), z: 0),
+                anchor: UnitPoint(x: iconCenter.x / side, y: iconCenter.y / side),
+                perspective: RingTheme.blade3DPerspective
+            )
         }
     }
 }
