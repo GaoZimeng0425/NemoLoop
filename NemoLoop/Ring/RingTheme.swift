@@ -2,14 +2,13 @@
 import SwiftUI
 
 enum RingTheme {
-    // Fan-blade geometry (Dory-style): annular blades wider than their slot, each
-    // tucking under the previous one; icons stay upright above all blades.
+    // Fan-blade geometry (Dory-style): every blade is a fixed-width sector, laid out
+    // edge-to-edge in a fan centered on up; 11 blades fill 330° and leave the gap.
     static let outerRadius: CGFloat = 96
     static let innerRadius: CGFloat = 40          // band thickness = 56
     static let bladeCornerRadius: CGFloat = 10    // fillet on each blade's 4 corners
-    static let bladeOverlapFactor: Double = 1.35  // blade width ÷ slot share
-    static let maxBladeDegrees: Double = 120      // width cap so tiny counts stay sane
-    static let arcGapDegrees: Double = 30         // wrap gap between the last blade and the first
+    static let bladeDegrees: Double = 30          // fixed angular width of every blade
+    static let arcGapDegrees: Double = 30         // min wrap gap between the last blade and the first
     static let blade3DTiltDegrees: Double = 20    // per-blade 3D lean about its tangential axis
     static let blade3DPerspective: CGFloat = 0.75 // lower = stronger near-big-far-small
     static let popOffset: CGFloat = 6             // selected blade slides outward
