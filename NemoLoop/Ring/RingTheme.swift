@@ -10,8 +10,8 @@ enum RingTheme {
     static let bladeOverlapFactor: Double = 1.35  // blade width ÷ slot share
     static let maxBladeDegrees: Double = 120      // width cap so tiny counts stay sane
     static let arcGapDegrees: Double = 30         // wrap gap between the last blade and the first
-    static let bladeTiltDegrees: Double = 12      // each blade's extra lean past its radial slot
-    static let bladePivotOffset: CGFloat = 12     // tangential arc-center offset that exposes the lean
+    static let blade3DTiltDegrees: Double = 20    // per-blade 3D lean about its tangential axis
+    static let blade3DPerspective: CGFloat = 0.75 // lower = stronger near-big-far-small
     static let popOffset: CGFloat = 6             // selected blade slides outward
     static let shadowPad: CGFloat = 14            // frame headroom for pop + shadow
 

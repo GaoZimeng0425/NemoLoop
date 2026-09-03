@@ -27,15 +27,12 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
-            // Ascending index order: each blade covers its counterclockwise neighbour.
-            // The fan spans less than 360°, so the last blade stops short of the first
-            // — the wrap gap means no blade ever covers two neighbours.
+            // Each item view: blade shape + logo tilting together. Ascending index
+            // order: each blade covers its counterclockwise neighbour. The fan spans
+            // less than 360°, so the last blade stops short of the first — the wrap
+            // gap means no blade ever covers two neighbours.
             ForEach(0..<bladeCount, id: \.self) { i in
                 bladeView(for: i)
-            }
-            // Icons stay upright and above all blades, so no overlap can cover one.
-            ForEach(0..<bladeCount, id: \.self) { i in
-                iconView(for: i)
             }
         }
         .frame(width: frameRadius * 2, height: frameRadius * 2)
@@ -55,44 +52,35 @@ struct RingView: View {
         layout.centerAngle(i) * .pi / 180
     }
 
-    private func bladeCenter(for i: Int) -> CGPoint {
-        let midRadius = (RingTheme.innerRadius + RingTheme.outerRadius) / 2
-        let theta = slotAngle(i)
-        return CGPoint(x: frameRadius + midRadius * sin(theta),
-                       y: frameRadius - midRadius * cos(theta))
-    }
-
     // MARK: - Blades
 
     @ViewBuilder
     private func bladeView(for i: Int) -> some View {
-        // One shared blade shape, drawn centered on up; each blade is then rotated to
-        // its slot angle PLUS a fixed extra tilt about its own arc center, so every
-        // blade leans individually instead of nesting into a perfect circle.
-        let shape = WedgeShape(index: 0, count: bladeCount,
+        // STEP 1 baseline — mirrors the isolation harness exactly: shape + fill +
+        // stroke + centered position. Will re-add material / 3D tilt / logo one at a
+        // time with a render check after each.
+        let side = RingTheme.outerRadius * 2
+        let theta = slotAngle(i)
+        let shape = WedgeShape(index: 0, count: 1,
                                innerRadius: RingTheme.innerRadius,
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.bladeCornerRadius,
-                               startAngle: -.pi / 2 - .pi / Double(bladeCount),
+                               centerAngle: theta,
                                bladeWidth: layout.bladeWidth * .pi / 180)
         let isEmpty = icons[i] == nil
         let isHot = viewModel.highlightedIndex == i
-        let theta = slotAngle(i)
-        let pop: CGFloat = isHot ? RingTheme.popOffset : 0
-        // Arc center sits near the ring center, offset sideways (tangentially) by the
-        // pivot offset — that sideways pivot is what makes the tilt visible.
-        let e = RingTheme.bladePivotOffset
-        let px = frameRadius + e * cos(theta) + pop * sin(theta)
-        let py = frameRadius + e * sin(theta) - pop * cos(theta)
 
-        ZStack {
-            // Per-blade frosted glass. Note: NOT macOS 26 glassEffect — multiple
-            // glassEffects inside one compositing group render only the last shape
-            // and suppress sibling layers, so every blade gets its own material.
-            VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
-                .clipShape(shape)
-                .overlay(shape.fill(RingTheme.glassTint))
-
+        Group {
+            // Frosted glass — SwiftUI-native Material (NSViewRepresentable effects
+            // don't follow Core Animation 3D transforms; multiple macOS 26
+            // glassEffects in one compositing group render only the last shape).
+            // Per-blade surface: translucent dark fill. Deliberately NOT a Material /
+            // VisualEffectView / glassEffect — platform-backed materials composite
+            // above their SwiftUI siblings and swallow them (render-proven twice:
+            // glassEffect in a compositing group, and Material hiding same-container
+            // icons). A translucent fill keeps the dark-glass look and transforms
+            // cleanly with the 3D tilt.
+            shape.fill(RingTheme.glassTint)
             if isHot && !isEmpty {
                 shape.fill(RingTheme.accentGradient)
             } else if isHot {
@@ -102,36 +90,36 @@ struct RingView: View {
             } else {
                 shape.fill(RingTheme.emptyFill)
             }
-
-            // Hairline on every blade; over the overlap seams these read as the
-            // cascade's shadow lines.
             shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
+            iconView(for: i)
+                .position(x: side / 2 + ((RingTheme.innerRadius + RingTheme.outerRadius) / 2) * sin(theta),
+                          y: side / 2 - ((RingTheme.innerRadius + RingTheme.outerRadius) / 2) * cos(theta))
         }
-        .frame(width: RingTheme.outerRadius * 2, height: RingTheme.outerRadius * 2)
+        .frame(width: side, height: side)
         // Per-blade drop shadow: each blade casts onto the one beneath it, making the
         // overlap cascade legible (Dory's look).
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
-        .rotationEffect(.degrees(theta * 180 / .pi + RingTheme.bladeTiltDegrees))
-        // Selected blade slides outward along its bisector (Dory's pop).
-        .position(x: px, y: py)
+        // 3D lean about the blade's own tangential axis (radial = (sin θ, −cos θ),
+        // tangential ⊥ radial = (cos θ, sin θ), y down): the blade body foreshortens
+        // around the logo — near big, far small — no 2D rotation involved.
+        .rotation3DEffect(.degrees(RingTheme.blade3DTiltDegrees),
+                          axis: (x: cos(theta), y: sin(theta), z: 0),
+                          perspective: RingTheme.blade3DPerspective)
+        .position(x: frameRadius, y: frameRadius)
     }
 
-    // MARK: - Icons
+    // MARK: - Icon
 
     @ViewBuilder
     private func iconView(for i: Int) -> some View {
-        let center = bladeCenter(for: i)
-
         if let icon = icons[i] {
             Image(nsImage: icon)
                 .resizable()
                 .frame(width: RingTheme.iconSize, height: RingTheme.iconSize)
-                .position(center)
         } else {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(RingTheme.iconTint.opacity(0.35))
-                .position(center)
         }
     }
 }
@@ -139,9 +127,10 @@ struct RingView: View {
 /// A fan blade: an annular sector for index `i` of `count`. Blades are centered on
 /// evenly spaced slot angles starting at `startAngle + slice/2`, but each blade's own
 /// angular width `bladeWidth` can exceed the slot pitch `span/count`, so neighbouring
-/// blades overlap — each one tucks under the previous. `cornerRadius` rounds the four
-/// corners with circular fillets while keeping the outer/inner arcs and straight
-/// radial edges exact.
+/// blades overlap — each one tucks under the previous. An explicit `centerAngle`
+/// (radians, SwiftUI convention) overrides the slot placement entirely.
+/// `cornerRadius` rounds the four corners with circular fillets while keeping the
+/// outer/inner arcs and straight radial edges exact.
 struct WedgeShape: Shape {
     let index: Int
     let count: Int
@@ -150,13 +139,15 @@ struct WedgeShape: Shape {
     var cornerRadius: CGFloat = 0
     var startAngle: Double = -.pi / 2
     var span: Double = 2 * .pi
+    var centerAngle: Double? = nil  // radians; overrides the slot-derived angle
     var bladeWidth: Double? = nil   // radians; defaults to the slot pitch
 
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
         let slice = span / Double(count)
         // SwiftUI angles: 0 = +x (right), increasing clockwise (y down); -π/2 = up.
-        let centerAngle = startAngle + slice / 2 + Double(index) * slice
+        let slotCenter = startAngle + slice / 2 + Double(index) * slice
+        let centerAngle = centerAngle ?? slotCenter
         let half = (bladeWidth ?? slice) / 2
         let theta0 = centerAngle - half   // a0-side boundary ray
         let theta1 = centerAngle + half   // a1-side boundary ray
