@@ -6,6 +6,7 @@ enum RingTheme {
     // edge-to-edge in a fan centered on up; 11 blades fill 330° and leave the gap.
     static let outerRadius: CGFloat = 96
     static let innerRadius: CGFloat = 40          // band thickness = 56
+    static var midRadius: CGFloat { (innerRadius + outerRadius) / 2 }  // logo orbit + 3D tilt anchor
     static let bladeCornerRadius: CGFloat = 10    // fillet on each blade's 4 corners
     static let bladeDegrees: Double = 30          // fixed angular width of every blade
     static let arcGapDegrees: Double = 30         // min wrap gap between the last blade and the first
