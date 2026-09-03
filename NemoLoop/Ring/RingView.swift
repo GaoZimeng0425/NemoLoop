@@ -2,45 +2,44 @@
 import SwiftUI
 
 struct RingView: View {
-    /// One entry per wedge; `nil` renders an empty slot (a "+" glyph). `icons.count`
-    /// drives the wedge count, so the ring is fully dynamic.
+    /// One entry per blade; `nil` renders an empty slot (a "+" glyph). `icons.count`
+    /// drives the blade count, so the ring is fully dynamic.
     let icons: [NSImage?]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
 
     @State private var appeared = false
 
-    private var wedgeCount: Int { icons.count }
-
-    // The wedge arc in SwiftUI's path angle convention (from-up → path: −π/2).
-    private var arcStartPath: Double { RingGeometry.arcStart - .pi / 2 }
-    private var arcSpanPath: Double { RingGeometry.arcSpan }
+    private var bladeCount: Int { icons.count }
 
     init(icons: [NSImage?], viewModel: RingViewModel) {
         self.icons = icons
         self._viewModel = Bindable(viewModel)
     }
 
+    /// Blade width: a multiple of the slot pitch so neighbours overlap (each blade
+    /// tucks under the previous one), capped for tiny counts.
+    private var bladeDegrees: Double {
+        min(360 / Double(bladeCount) * RingTheme.bladeOverlapFactor, RingTheme.maxBladeDegrees)
+    }
+
+    private var frameRadius: CGFloat {
+        RingTheme.outerRadius + RingTheme.popOffset + RingTheme.shadowPad
+    }
+
     var body: some View {
         ZStack {
-            ringBacking   // one continuous frosted-glass annulus beneath all wedges
-
-            ForEach(0..<wedgeCount, id: \.self) { i in
-                wedgeFill(for: i)
-                    .overlay(
-                        WedgeShape(index: i, count: wedgeCount,
-                                   innerRadius: RingTheme.innerRadius,
-                                   outerRadius: RingTheme.outerRadius,
-                                   cornerRadius: RingTheme.wedgeCornerRadius,
-                                   gap: RingTheme.wedgeGap,
-                                   startAngle: arcStartPath,
-                                   span: arcSpanPath)
-                            .stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
-                    )
+            // Descending index order: blade 0 ends up topmost, each blade stacking
+            // onto its clockwise neighbour — the Dory cascade.
+            ForEach((0..<bladeCount).reversed(), id: \.self) { i in
+                bladeView(for: i)
+            }
+            // Icons stay upright and above all blades, so no overlap can cover one.
+            ForEach(0..<bladeCount, id: \.self) { i in
                 iconView(for: i)
             }
         }
-        .frame(width: RingTheme.outerRadius * 2, height: RingTheme.outerRadius * 2)
+        .frame(width: frameRadius * 2, height: frameRadius * 2)
         .compositingGroup()
         .shadow(color: RingTheme.shadowColor, radius: RingTheme.shadowRadius)
         .position(center)
@@ -52,174 +51,151 @@ struct RingView: View {
         }
     }
 
-    // MARK: - Per-wedge fills
-
-    @ViewBuilder
-    private func wedgeFill(for i: Int) -> some View {
-        let shape = WedgeShape(index: i, count: wedgeCount,
-                               innerRadius: RingTheme.innerRadius,
-                               outerRadius: RingTheme.outerRadius,
-                               cornerRadius: RingTheme.wedgeCornerRadius,
-                               gap: RingTheme.wedgeGap,
-                               startAngle: arcStartPath,
-                               span: arcSpanPath)
-        let isEmpty = icons[i] == nil
-        let isHot = viewModel.highlightedIndex == i
-
-        // Frosted glass is supplied by the continuous `ringBacking` beneath; each wedge
-        // only paints its state tint. Unassigned-idle wedges stay transparent so the
-        // shared annulus shows through — the gaps read as notches on one ring.
-        if isHot && !isEmpty {
-            shape.fill(RingTheme.accentGradient)
-        } else if isHot {
-            shape.fill(RingTheme.highlightEmpty)
-        } else if !isEmpty {
-            shape.fill(RingTheme.baseFill)
-        }
+    /// Slot-center angle (from-up convention, clockwise) of blade `i`.
+    private func slotAngle(_ i: Int) -> Double {
+        2 * .pi * Double(i) / Double(bladeCount)
     }
 
-    // One continuous frosted-glass band behind all wedges, following the same open
-    // arc; the inter-wedge gaps reveal it, so the wedges read as sitting on one band.
+    private func bladeCenter(for i: Int) -> CGPoint {
+        let midRadius = (RingTheme.innerRadius + RingTheme.outerRadius) / 2
+        let theta = slotAngle(i)
+        return CGPoint(x: frameRadius + midRadius * sin(theta),
+                       y: frameRadius - midRadius * cos(theta))
+    }
+
+    // MARK: - Blades
+
     @ViewBuilder
-    private var ringBacking: some View {
-        let ring = ArcBandShape(innerRadius: RingTheme.ringBackingInner,
-                                outerRadius: RingTheme.ringBackingOuter,
-                                startAngle: arcStartPath,
-                                span: arcSpanPath)
-        if #available(macOS 26.0, *) {
-            Color.clear
-                .glassEffect(.regular.tint(RingTheme.glassTint), in: ring)
-        } else {
+    private func bladeView(for i: Int) -> some View {
+        let shape = WedgeShape(index: i, count: bladeCount,
+                               innerRadius: RingTheme.innerRadius,
+                               outerRadius: RingTheme.outerRadius,
+                               cornerRadius: RingTheme.bladeCornerRadius,
+                               startAngle: -.pi / 2 - .pi / Double(bladeCount),
+                               bladeWidth: bladeDegrees * .pi / 180)
+        let isEmpty = icons[i] == nil
+        let isHot = viewModel.highlightedIndex == i
+        let theta = slotAngle(i)
+        let pop: CGFloat = isHot ? RingTheme.popOffset : 0
+
+        ZStack {
+            // Per-blade frosted glass. Note: NOT macOS 26 glassEffect — multiple
+            // glassEffects inside one compositing group render only the last shape
+            // and suppress sibling layers, so every blade gets its own material.
             VisualEffectView(material: .hudWindow, blendingMode: .behindWindow, state: .active)
-                .clipShape(ring)
-                .overlay(ring.fill(RingTheme.glassTint))
+                .clipShape(shape)
+                .overlay(shape.fill(RingTheme.glassTint))
+
+            if isHot && !isEmpty {
+                shape.fill(RingTheme.accentGradient)
+            } else if isHot {
+                shape.fill(RingTheme.highlightEmpty)
+            } else if !isEmpty {
+                shape.fill(RingTheme.baseFill)
+            } else {
+                shape.fill(RingTheme.emptyFill)
+            }
+
+            // Hairline on every blade; over the overlap seams these read as the
+            // cascade's shadow lines.
+            shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
         }
+        // The shape draws itself already rotated to its slot angle inside a square
+        // frame whose center is the ring center — every blade's frame positions at
+        // that same point; no per-blade rotation is needed.
+        .frame(width: RingTheme.outerRadius * 2, height: RingTheme.outerRadius * 2)
+        // Per-blade drop shadow: with descending z-order each blade casts onto its
+        // counterclockwise neighbour, making the overlap cascade legible (Dory's look).
+        .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
+        // Selected blade slides outward along its bisector (Dory's pop).
+        .offset(x: pop * sin(theta), y: -pop * cos(theta))
+        .position(x: frameRadius, y: frameRadius)
     }
 
     // MARK: - Icons
 
     @ViewBuilder
     private func iconView(for i: Int) -> some View {
-        let midRadius = (RingTheme.innerRadius + RingTheme.outerRadius) / 2
-        let slice = RingGeometry.arcSpan / Double(wedgeCount)
-        let angle = RingGeometry.arcStart + slice / 2 + Double(i) * slice
-        let dx = midRadius * sin(angle)
-        let dy = -midRadius * cos(angle)
-        let x = RingTheme.outerRadius + dx
-        let y = RingTheme.outerRadius + dy
+        let center = bladeCenter(for: i)
 
         if let icon = icons[i] {
             Image(nsImage: icon)
                 .resizable()
                 .frame(width: RingTheme.iconSize, height: RingTheme.iconSize)
-                .position(x: x, y: y)
+                .position(center)
         } else {
             Image(systemName: "plus")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(RingTheme.iconTint.opacity(0.35))
-                .position(x: x, y: y)
+                .position(center)
         }
     }
 }
 
-/// A C-shaped band: the area swept by an arc at the band's mid radius, stroked with
-/// `outerRadius − innerRadius` width and butt caps — i.e. the annular sector between
-/// the two radii over [startAngle, startAngle + span], with flat radial ends. Used as
-/// the continuous backing the wedges sit on. Butt caps (not round) on purpose: the
-/// band is thick, so a round cap's angular reach (≈ asin(capR/midR) ≈ ±32°) would
-/// swallow the 60° gap between the arc's ends.
-struct ArcBandShape: Shape {
-    let innerRadius: CGFloat
-    let outerRadius: CGFloat
-    var startAngle: Double
-    var span: Double
-
-    func path(in rect: CGRect) -> Path {
-        let c = CGPoint(x: rect.midX, y: rect.midY)
-        let midRadius = (Double(innerRadius) + Double(outerRadius)) / 2
-        var arc = Path()
-        arc.addArc(center: c, radius: midRadius,
-                   startAngle: .radians(startAngle),
-                   endAngle: .radians(startAngle + span),
-                   clockwise: false)
-        return arc.strokedPath(StrokeStyle(lineWidth: outerRadius - innerRadius, lineCap: .butt))
-    }
-}
-
-/// A donut wedge (annular sector) for index `i` of `count`. The wedges evenly divide
-/// `span` (SwiftUI angle convention: 0 = +x, y down, clockwise) starting at
-/// `startAngle` — wedge 0 spans [startAngle, startAngle + span/count].
-/// `cornerRadius` rounds the four corners with circular fillets while keeping the
-/// outer/inner arcs and straight radial edges exact. `gap` (points) is the total
-/// perpendicular separation left between neighbouring wedges — each radial edge is
-/// offset inward by `gap/2`, so adjacent edges stay parallel and aligned (a constant-
-/// width gap), instead of the wedge-shaped gap an angular shave would produce.
+/// A fan blade: an annular sector for index `i` of `count`. Blades are centered on
+/// evenly spaced slot angles starting at `startAngle + slice/2`, but each blade's own
+/// angular width `bladeWidth` can exceed the slot pitch `span/count`, so neighbouring
+/// blades overlap — each one tucks under the previous. `cornerRadius` rounds the four
+/// corners with circular fillets while keeping the outer/inner arcs and straight
+/// radial edges exact.
 struct WedgeShape: Shape {
     let index: Int
     let count: Int
     let innerRadius: CGFloat
     let outerRadius: CGFloat
     var cornerRadius: CGFloat = 0
-    var gap: CGFloat = 0
-    var startAngle: Double
-    var span: Double
+    var startAngle: Double = -.pi / 2
+    var span: Double = 2 * .pi
+    var bladeWidth: Double? = nil   // radians; defaults to the slot pitch
 
     func path(in rect: CGRect) -> Path {
         let c = CGPoint(x: rect.midX, y: rect.midY)
         let slice = span / Double(count)
+        // SwiftUI angles: 0 = +x (right), increasing clockwise (y down); -π/2 = up.
         let centerAngle = startAngle + slice / 2 + Double(index) * slice
-        let theta0 = centerAngle - slice / 2   // a0-side boundary ray
-        let theta1 = centerAngle + slice / 2   // a1-side boundary ray
+        let half = (bladeWidth ?? slice) / 2
+        let theta0 = centerAngle - half   // a0-side boundary ray
+        let theta1 = centerAngle + half   // a1-side boundary ray
         let R = Double(outerRadius)
         let r = Double(innerRadius)
-        let g = max(0, Double(gap) / 2)         // perpendicular inset of each radial edge
 
         func pt(_ radius: Double, _ angle: Double) -> CGPoint {
             CGPoint(x: c.x + radius * cos(angle), y: c.y + radius * sin(angle))
         }
 
-        // The radial edge offset inward by `g` meets a circle of radius ρ at the boundary
-        // angle ∓ asin(g/ρ) — a larger angular inset near the hub, smaller at the rim, so
-        // the two edges of the gap stay parallel.
-        let a0o = theta0 + asin(min(1, g / R))   // a0 side, outer
-        let a1o = theta1 - asin(min(1, g / R))   // a1 side, outer
-        let a0i = theta0 + asin(min(1, g / r))   // a0 side, inner
-        let a1i = theta1 - asin(min(1, g / r))   // a1 side, inner
-
-        // Sharp wedge when rounding is off.
+        // Sharp blade when rounding is off.
         guard cornerRadius > 0 else {
             var p = Path()
-            p.move(to: pt(R, a0o))
-            p.addArc(center: c, radius: outerRadius, startAngle: .radians(a0o), endAngle: .radians(a1o), clockwise: false)
-            p.addLine(to: pt(r, a1i))
-            p.addArc(center: c, radius: innerRadius, startAngle: .radians(a1i), endAngle: .radians(a0i), clockwise: true)
-            p.closeSubpath()   // straight radial edge back to (R, a0o)
+            p.move(to: pt(R, theta0))
+            p.addArc(center: c, radius: outerRadius, startAngle: .radians(theta0), endAngle: .radians(theta1), clockwise: false)
+            p.addLine(to: pt(r, theta1))
+            p.addArc(center: c, radius: innerRadius, startAngle: .radians(theta1), endAngle: .radians(theta0), clockwise: true)
+            p.closeSubpath()
             return p
         }
 
-        // Clamp so fillets never overlap on an arc, invert the radial edge, or exceed the band.
-        // Each fillet centre sits a perpendicular distance (g + cr) from its boundary ray, so
-        // its angular inset is asin((g+cr)/ρ); requiring that < slice/2 bounds cr.
-        let s = sin(slice / 2)
-        let maxOuter = (s * R - g) / (1 + s)
-        let maxInner = s < 1 ? (s * r - g) / (1 - s) : .infinity
+        // Clamp so fillets never overlap on an arc, invert a radial edge, or exceed
+        // the band. Bounds use the blade's own half-width.
+        let s = sin(half)
+        let maxOuter = (s * R) / (1 + s)
+        let maxInner = s < 1 ? (s * r) / (1 - s) : .infinity
         let maxBand = (R - r) / 2 - 1
         let cr = max(0, min(Double(cornerRadius), maxOuter, maxInner, maxBand))
 
         guard cr > 0 else {
             var p = Path()
-            p.move(to: pt(R, a0o))
-            p.addArc(center: c, radius: outerRadius, startAngle: .radians(a0o), endAngle: .radians(a1o), clockwise: false)
-            p.addLine(to: pt(r, a1i))
-            p.addArc(center: c, radius: innerRadius, startAngle: .radians(a1i), endAngle: .radians(a0i), clockwise: true)
+            p.move(to: pt(R, theta0))
+            p.addArc(center: c, radius: outerRadius, startAngle: .radians(theta0), endAngle: .radians(theta1), clockwise: false)
+            p.addLine(to: pt(r, theta1))
+            p.addArc(center: c, radius: innerRadius, startAngle: .radians(theta1), endAngle: .radians(theta0), clockwise: true)
             p.closeSubpath()
             return p
         }
 
-        let bo = asin((g + cr) / (R - cr))   // angular inset of outer fillet tangent point
-        let bi = asin((g + cr) / (r + cr))   // angular inset of inner fillet tangent point
-        let alphaO = (R - cr) * cos(bo)      // along-edge distance of outer fillet centre
-        let alphaI = (r + cr) * cos(bi)      // along-edge distance of inner fillet centre
+        let bo = asin(cr / (R - cr))   // angular inset of outer fillet tangent point
+        let bi = asin(cr / (r + cr))   // angular inset of inner fillet tangent point
+        let alphaO = (R - cr) * cos(bo)   // along-edge distance of outer fillet centre
+        let alphaI = (r + cr) * cos(bi)   // along-edge distance of inner fillet centre
 
         // Unit basis for each boundary ray: u along the ray, n toward increasing angle.
         let u1 = CGPoint(x: cos(theta1), y: sin(theta1))
@@ -230,17 +206,16 @@ struct WedgeShape: Shape {
             CGPoint(x: c.x + alpha * u.x + beta * n.x, y: c.y + alpha * u.y + beta * n.y)
         }
 
-        // Foot of each fillet on its radial edge (perpendicular offset g from the boundary ray;
-        // interior is -n on the a1 side, +n on the a0 side).
-        let e1Outer = frame(alphaO, -g, u1, n1)
-        let e1Inner = frame(alphaI, -g, u1, n1)
-        let e0Inner = frame(alphaI, g, u0, n0)
-        let e0Outer = frame(alphaO, g, u0, n0)
+        // Fillet feet on the radial edges; interior is -n on the a1 side, +n on a0.
+        let e1Outer = frame(alphaO, 0, u1, n1)
+        let e1Inner = frame(alphaI, 0, u1, n1)
+        let e0Inner = frame(alphaI, 0, u0, n0)
+        let e0Outer = frame(alphaO, 0, u0, n0)
         // Fillet centres (a further cr into the interior).
-        let coEnd   = frame(alphaO, -(g + cr), u1, n1)
-        let ciEnd   = frame(alphaI, -(g + cr), u1, n1)
-        let ciStart = frame(alphaI, g + cr, u0, n0)
-        let coStart = frame(alphaO, g + cr, u0, n0)
+        let coEnd   = frame(alphaO, -cr, u1, n1)
+        let ciEnd   = frame(alphaI, -cr, u1, n1)
+        let ciStart = frame(alphaI, cr, u0, n0)
+        let coStart = frame(alphaO, cr, u0, n0)
 
         // Adds the minor-arc fillet of radius cr around `center`, from `from` to `to`.
         func fillet(_ p: inout Path, _ center: CGPoint, from: CGPoint, to: CGPoint) {
