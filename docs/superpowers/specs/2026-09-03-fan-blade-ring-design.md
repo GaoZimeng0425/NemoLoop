@@ -3,7 +3,7 @@
 **日期**: 2026-09-03
 **范围**: 环的视觉改为 Dory App Switcher 风格的**独立倾斜扇叶、一片压一片**布局
 **参考**: Dory App Switcher 高清截图（用户提供）——环扇楔片、相邻压叠、每片带独立倾角、图标正立
-**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除 → v5.1（用户：logo 不在扇面中）：**3D 倾斜轴锚到每片中带图标中心**（图标零位移归位扇面；v4 轴穿环心，透视把 logo 甩离槽位，亦是 v4 hover 观感错位主因），并恢复选中片外滑 6pt
+**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除 → v5.1（用户：logo 不在扇面中）：**3D 倾斜轴锚到每片中带图标中心**（图标零位移归位扇面；v4 轴穿环心，透视把 logo 甩离槽位，亦是 v4 hover 观感错位主因），并恢复选中片外滑 6pt → v5.2（用户实机两次均不对）：**放弃 3D 倾斜，`blade3DTiltDegrees = 0` 纯平面**；变换由 `BladeTilt` 修饰符承载、token 非 0 才挂载（0° 时完全跳过,平面渲染走像素验证过的同一路径）
 
 ## 平台视图坑（v4 实证，重要）
 
@@ -34,13 +34,13 @@
 
 - **每个 item 一个独立 view**：`Group { 表面填充 + 状态填充 + 描边 + logo(.position 于扇面视觉中心) }.frame(side).shadow(缝投影).rotation3DEffect(...).position(环心 + pop·径向)`——logo 与扇面同 view，随倾斜一起变换。
 - 形状 `WedgeShape(index: 0, count: 1, centerAngle: θ_i, bladeWidth: ω)`——`centerAngle` 参数（v4 加入）直接指定槽位角，形状自己完成槽位放置，**全程无 2D rotationEffect**（`rotation3DEffect` 与 `rotationEffect` 组合会破坏布局，渲染实验证实）。
-- 3D 倾斜：`rotation3DEffect(blade3DTiltDegrees(20°), axis: (cos θ, sin θ, 0), perspective: 0.75)`——轴在画布坐标系下即该片切向（径向 = (sin θ, −cos θ)，切向 ⊥ 径向，y 向下）；刀片绕切向轴透视倾斜，近大远小。**v5.1：轴必须加 `anchor:` 锚到该片图标中心（`UnitPoint(iconCenter/side)`）**——默认 `.center` 的轴穿的是环心（画布中心），图标离轴 68pt 转后会获得 ±23pt z 位移，被 perspective 0.75 甩离槽位（左半甩出外弧、右半缩进内弧）；锚到图标后图标零位移、内外弧绕它倾斜。
+- 3D 倾斜（**v5.2 当前关闭：`blade3DTiltDegrees = 0`，`BladeTilt` 修饰符仅在该 token 非 0 时应用 `rotation3DEffect`，否则完全跳过**）：轴 = 该片切向 `(cos θ, sin θ, 0)`、`anchor:` 锚到该片图标中心（`UnitPoint(iconCenter/side)`）、perspective 0.75——历史教训：默认 `.center` 的轴穿环心，图标离轴 68pt 转后获 ±23pt z 位移，被透视甩离槽位；锚到图标后数学上图标零位移,但实机观感仍不对（两次尝试均被用户否决）,如重试需先用真实窗口截图验证。
 - 框半径 = `outerRadius + popOffset + shadowPad`；缺口不改变画布尺寸。
 - `WedgeShape`：`bladeWidth` 角宽与槽距解耦；`centerAngle` 覆写槽位角；fillet clamp 用 `sin(ω/2)`；原 `gap` 数学已删。
 
 ## Token（`RingTheme`）
 
-`outerRadius 96` / `innerRadius 40` / `bladeCornerRadius 10` / **`bladeDegrees 30`**（v5：固定扇面角宽，11 片 × 30° = 330°）/ `arcGapDegrees 30`（收口缺口下限）/ **`blade3DTiltDegrees 20`** / **`blade3DPerspective 0.75`** / `popOffset 6` / `shadowPad 14` / `iconSize 32` / 每片缝投影（黑 30%、半径 3）。v5 删除 `bladeOverlapFactor`、`maxBladeDegrees`。
+`outerRadius 96` / `innerRadius 40` / `bladeCornerRadius 10` / **`bladeDegrees 30`**（v5：固定扇面角宽，11 片 × 30° = 330°）/ `arcGapDegrees 30`（收口缺口下限）/ `blade3DTiltDegrees 0`（v5.2 关闭 3D 倾斜）/ `blade3DPerspective 0.75`（tilt 为 0 时不生效）/ `popOffset 6` / `shadowPad 14` / `iconSize 32` / 每片缝投影（黑 30%、半径 3）。v5 删除 `bladeOverlapFactor`、`maxBladeDegrees`。
 
 ## 材质（重要坑，v4 两次实证）
 
