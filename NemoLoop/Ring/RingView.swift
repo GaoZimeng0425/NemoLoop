@@ -29,9 +29,10 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
-            // Descending index order: blade 0 ends up topmost, each blade stacking
-            // onto its clockwise neighbour — the Dory cascade.
-            ForEach((0..<bladeCount).reversed(), id: \.self) { i in
+            // Ascending index order: each blade covers its counterclockwise neighbour,
+            // so the last blade overlaps the first at the wrap — no seam anomaly at the
+            // top slot.
+            ForEach(0..<bladeCount, id: \.self) { i in
                 bladeView(for: i)
             }
             // Icons stay upright and above all blades, so no overlap can cover one.
@@ -67,7 +68,10 @@ struct RingView: View {
 
     @ViewBuilder
     private func bladeView(for i: Int) -> some View {
-        let shape = WedgeShape(index: i, count: bladeCount,
+        // One shared blade shape, drawn centered on up; each blade is then rotated to
+        // its slot angle PLUS a fixed extra tilt about its own arc center, so every
+        // blade leans individually instead of nesting into a perfect circle.
+        let shape = WedgeShape(index: 0, count: bladeCount,
                                innerRadius: RingTheme.innerRadius,
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.bladeCornerRadius,
@@ -77,6 +81,11 @@ struct RingView: View {
         let isHot = viewModel.highlightedIndex == i
         let theta = slotAngle(i)
         let pop: CGFloat = isHot ? RingTheme.popOffset : 0
+        // Arc center sits near the ring center, offset sideways (tangentially) by the
+        // pivot offset — that sideways pivot is what makes the tilt visible.
+        let e = RingTheme.bladePivotOffset
+        let px = frameRadius + e * cos(theta) + pop * sin(theta)
+        let py = frameRadius + e * sin(theta) - pop * cos(theta)
 
         ZStack {
             // Per-blade frosted glass. Note: NOT macOS 26 glassEffect — multiple
@@ -100,16 +109,13 @@ struct RingView: View {
             // cascade's shadow lines.
             shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
         }
-        // The shape draws itself already rotated to its slot angle inside a square
-        // frame whose center is the ring center — every blade's frame positions at
-        // that same point; no per-blade rotation is needed.
         .frame(width: RingTheme.outerRadius * 2, height: RingTheme.outerRadius * 2)
-        // Per-blade drop shadow: with descending z-order each blade casts onto its
-        // counterclockwise neighbour, making the overlap cascade legible (Dory's look).
+        // Per-blade drop shadow: each blade casts onto the one beneath it, making the
+        // overlap cascade legible (Dory's look).
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
+        .rotationEffect(.degrees(theta * 180 / .pi + RingTheme.bladeTiltDegrees))
         // Selected blade slides outward along its bisector (Dory's pop).
-        .offset(x: pop * sin(theta), y: -pop * cos(theta))
-        .position(x: frameRadius, y: frameRadius)
+        .position(x: px, y: py)
     }
 
     // MARK: - Icons
