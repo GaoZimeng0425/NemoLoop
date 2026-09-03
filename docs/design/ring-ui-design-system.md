@@ -1,6 +1,6 @@
 # NemoLoop Ring — UI Design System (extracted from Loop)
 
-> Source of truth: Kai Azim's **Loop** radial menu (`/Users/gaozimeng/Learn/macOS/Loop/Loop/Window Action Indicators/Radial Menu/`). This doc extracts Loop's *visual language* and re-expresses it for NemoLoop, which keeps its own **per-wedge `WedgeShape` drawing** (annular-sector path) rather than Loop's fill-and-mask technique. We borrow Loop's **look** (gradient accent, glass/blur material, dual hairline borders, motion), not its **construction**.
+> Source of truth: Kai Azim's **Loop** radial menu (`/Users/gaozimeng/Learn/macOS/Loop/Loop/Window Action Indicators/Radial Menu/`). This doc extracts Loop's *visual language* and re-expresses it for NemoLoop, which since 2026-09-03 draws **overlapping fan blades** (Dory-style annular sectors, each wider than its slot so it tucks under the previous one; upright icons) rather than Loop's fill-and-mask technique. We borrow Loop's **look** (gradient accent, glass/blur material, hairline borders, motion), not its **construction**. Parts A/B/C below describe the earlier wedge-based construction and remain as historical reference for the shared tokens.
 
 ---
 
@@ -225,4 +225,4 @@ The pop-in needs the ring to be conditionally inserted (`if viewModel.isShown`) 
 
 - **Fill-and-mask construction** — we draw explicit `WedgeShape` sectors instead, because each NemoLoop wedge is an independent content slot (its own app + icon + state), which the single-mask approach can't express cleanly.
 - **Rounded-square variant** (`DirectionSelectorSquareSegment`) — optional future token (`cornerRadius`), not in scope.
-- **Loop's closed full-circle geometry** — NemoLoop's ring is an **open arc** (Dory-style C-shape): wedges share a 300° arc with a fixed 60° gap at 10:30, so the ring reads as broken rather than closed (see `RingTheme.arc*Degrees`, `RingGeometry.arcStart/arcSpan`, and the spec `docs/superpowers/specs/2026-08-30-open-arc-ring-design.md`).
+- **Any exact-slice construction** — since 2026-09-03 NemoLoop renders Dory-style overlapping fan blades (`WedgeShape.bladeWidth` > slot pitch, descending z-order, per-blade seam shadow, upright icons above all blades; no continuous ring backing). Per-blade macOS 26 `glassEffect` inside a compositing group renders only the last shape and suppresses siblings — each blade uses its own `VisualEffectView` material; do not reintroduce glassEffect here. See `docs/superpowers/specs/2026-09-03-fan-blade-ring-design.md`.
