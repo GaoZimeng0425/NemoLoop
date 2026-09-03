@@ -7,8 +7,9 @@ enum RingTheme {
     static let outerRadius: CGFloat = 96
     static let innerRadius: CGFloat = 40          // band thickness = 56
     static let bladeCornerRadius: CGFloat = 10    // fillet on each blade's 4 corners
-    static let bladeOverlapFactor: Double = 1.35  // blade width ÷ slot pitch
+    static let bladeOverlapFactor: Double = 1.35  // blade width ÷ slot share
     static let maxBladeDegrees: Double = 120      // width cap so tiny counts stay sane
+    static let arcGapDegrees: Double = 30         // wrap gap between the last blade and the first
     static let bladeTiltDegrees: Double = 12      // each blade's extra lean past its radial slot
     static let bladePivotOffset: CGFloat = 12     // tangential arc-center offset that exposes the lean
     static let popOffset: CGFloat = 6             // selected blade slides outward
