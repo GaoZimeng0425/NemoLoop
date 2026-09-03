@@ -56,11 +56,11 @@ struct RingView: View {
 
     @ViewBuilder
     private func bladeView(for i: Int) -> some View {
-        // STEP 1 baseline — mirrors the isolation harness exactly: shape + fill +
-        // stroke + centered position. Will re-add material / 3D tilt / logo one at a
-        // time with a render check after each.
         let side = RingTheme.outerRadius * 2
         let theta = slotAngle(i)
+        let iconCenter = CGPoint(
+            x: side / 2 + RingTheme.midRadius * sin(theta),
+            y: side / 2 - RingTheme.midRadius * cos(theta))
         let shape = WedgeShape(index: 0, count: 1,
                                innerRadius: RingTheme.innerRadius,
                                outerRadius: RingTheme.outerRadius,
@@ -91,21 +91,25 @@ struct RingView: View {
                 shape.fill(RingTheme.emptyFill)
             }
             shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
-            iconView(for: i)
-                .position(x: side / 2 + ((RingTheme.innerRadius + RingTheme.outerRadius) / 2) * sin(theta),
-                          y: side / 2 - ((RingTheme.innerRadius + RingTheme.outerRadius) / 2) * cos(theta))
+            iconView(for: i).position(iconCenter)
         }
         .frame(width: side, height: side)
         // Per-blade drop shadow: each blade casts onto the one beneath it, making the
         // overlap cascade legible (Dory's look).
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
-        // 3D lean about the blade's own tangential axis (radial = (sin θ, −cos θ),
-        // tangential ⊥ radial = (cos θ, sin θ), y down): the blade body foreshortens
-        // around the logo — near big, far small — no 2D rotation involved.
+        // 3D lean about the tangential axis THROUGH the icon centre (radial =
+        // (sin θ, −cos θ), tangential ⊥ radial = (cos θ, sin θ), y down). Anchoring
+        // on the icon keeps it exactly on its slot: with the default centre anchor
+        // the axis passed through the ring centre and the perspective flung logos
+        // off their blades. The band foreshortens around the logo — near big, far
+        // small — no 2D rotation involved.
         .rotation3DEffect(.degrees(RingTheme.blade3DTiltDegrees),
                           axis: (x: cos(theta), y: sin(theta), z: 0),
+                          anchor: UnitPoint(x: iconCenter.x / side, y: iconCenter.y / side),
                           perspective: RingTheme.blade3DPerspective)
-        .position(x: frameRadius, y: frameRadius)
+        // Selected blade slides outward along its slot bisector.
+        .position(x: frameRadius + (isHot ? RingTheme.popOffset * sin(theta) : 0),
+                  y: frameRadius - (isHot ? RingTheme.popOffset * cos(theta) : 0))
     }
 
     // MARK: - Icon

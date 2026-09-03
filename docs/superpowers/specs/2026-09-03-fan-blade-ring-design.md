@@ -3,7 +3,7 @@
 **日期**: 2026-09-03
 **范围**: 环的视觉改为 Dory App Switcher 风格的**独立倾斜扇叶、一片压一片**布局
 **参考**: Dory App Switcher 高清截图（用户提供）——环扇楔片、相邻压叠、每片带独立倾角、图标正立
-**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除
+**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除 → v5.1（用户：logo 不在扇面中）：**3D 倾斜轴锚到每片中带图标中心**（图标零位移归位扇面；v4 轴穿环心，透视把 logo 甩离槽位，亦是 v4 hover 观感错位主因），并恢复选中片外滑 6pt
 
 ## 平台视图坑（v4 实证，重要）
 
@@ -34,7 +34,7 @@
 
 - **每个 item 一个独立 view**：`Group { 表面填充 + 状态填充 + 描边 + logo(.position 于扇面视觉中心) }.frame(side).shadow(缝投影).rotation3DEffect(...).position(环心 + pop·径向)`——logo 与扇面同 view，随倾斜一起变换。
 - 形状 `WedgeShape(index: 0, count: 1, centerAngle: θ_i, bladeWidth: ω)`——`centerAngle` 参数（v4 加入）直接指定槽位角，形状自己完成槽位放置，**全程无 2D rotationEffect**（`rotation3DEffect` 与 `rotationEffect` 组合会破坏布局，渲染实验证实）。
-- 3D 倾斜：`rotation3DEffect(blade3DTiltDegrees(20°), axis: (cos θ, sin θ, 0), perspective: 0.75)`——轴在画布坐标系下即该片切向（径向 = (sin θ, −cos θ)，切向 ⊥ 径向，y 向下）；刀片绕切向轴透视倾斜，近大远小。
+- 3D 倾斜：`rotation3DEffect(blade3DTiltDegrees(20°), axis: (cos θ, sin θ, 0), perspective: 0.75)`——轴在画布坐标系下即该片切向（径向 = (sin θ, −cos θ)，切向 ⊥ 径向，y 向下）；刀片绕切向轴透视倾斜，近大远小。**v5.1：轴必须加 `anchor:` 锚到该片图标中心（`UnitPoint(iconCenter/side)`）**——默认 `.center` 的轴穿的是环心（画布中心），图标离轴 68pt 转后会获得 ±23pt z 位移，被 perspective 0.75 甩离槽位（左半甩出外弧、右半缩进内弧）；锚到图标后图标零位移、内外弧绕它倾斜。
 - 框半径 = `outerRadius + popOffset + shadowPad`；缺口不改变画布尺寸。
 - `WedgeShape`：`bladeWidth` 角宽与槽距解耦；`centerAngle` 覆写槽位角；fillet clamp 用 `sin(ω/2)`；原 `gap` 数学已删。
 
