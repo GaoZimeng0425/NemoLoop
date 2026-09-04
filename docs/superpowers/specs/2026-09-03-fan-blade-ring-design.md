@@ -62,3 +62,20 @@
 ## 未纳入（YAGNI）
 
 - 缺口角度/倾角/轴心偏移不做设置项（改 token 即可调）；倾斜方向若与参考图相反，翻转 `bladeTiltDegrees` 符号即可；不改配色（保留磨砂玻璃语言）；不做 List/Palette 模式。
+
+## v5.5：shingle 叠压 + 圆角梯形卡 + 内缘铰接 3D（2026-09-04，分支 `feature/blade-card-depth`）
+
+用户以 Dory App Switcher 参考图为标准提出三点：环形 UI 要有 3D 倾斜与纵深、前一片 zIndex 高于后一片（微微压住后一个）、尽量 1:1 复刻。此前 v5.3/v5.4 的 20° 中心 pivot 倾斜实际只压缩卡面约 6%，观感是平的。
+
+**改动（`RingTheme` token + `RingView`）：**
+
+1. **内缘铰接倾斜**：`rotation3DEffect` 锚点从卡面中心移到内缘（`blade3DHingeFraction = 1`，anchor = 中心向环心偏 band/2），卡片像翻板一样从内缘向后倒，外缘远去——纵深的主线索。倾角 32°、perspective 0.6。实验结论：42°+0.6 会把外缘剪影整体塌进环里（弃）；`perspective` 旋钮在 0.6~0.85 间对透视反差作用很弱。
+2. **前压后 z 序**：每片 `.zIndex(bladeCount − i)`（0 号最上，hover 片再加 `bladeCount` 顶到最上），fan 顺时针时每片盖住顺时针方向的下家；每片缝阴影因此自动变成"上家投影在下家上"。命中测试仍按 slot 刀缝（已确认接受被压条带外缘 ~3.5pt 命中归下家）。
+3. **圆角梯形卡**：`WedgeShape`（弧边）替换为 `CardBladeShape`（内外缘直线弦 + 四角圆角 fillet，逐角按邻边 clamp）。角度约定与 WedgeShape 一致（SwiftUI 角、`−π/2` 转换），原约定哨兵测试移植为 `CardBladeShapeTests`。`cornerRadius` 10→18。
+4. **几何比例**：`innerRadius 40→30`、`outerRadius 96→104`（band 74，卡面大而饱满、环孔占比小）、`bladeViewSide 64→88`、`iconSize 28→32`（随槽宽缩放：`min(iconSize, 2·midRadius·sin(rad(pitch+overlap)/2)·0.7)`，片多时图标跟着缩，防止串珠化）。
+5. **叠压封顶**：渲染宽度 = pitch + min(8°, 30%·pitch)。>11 片 pitch 压缩时叠压不再放大，14 片实测仍为清爽叠瓦。
+6. **浅色磨砂**：`glassTint` 黑 28% → 白 30%（参考图卡面为浅磨砂），分隔线白 12% → 黑 12%。
+
+**验证**：临时渲染 probe（真实窗口 + 外部 `screencapture -l`；注意 xctest 进程无屏幕录制权限，须由有权限的 shell 按窗口号截）6 片 / 14 片双 Case 与参考图并排比对迭代 6 轮；单测 23 项全过；真机 ⌃T 验看。
+
+**已知未复刻**：参考图顶卡外缘略窄于内缘（强透视反差），SwiftUI `perspective` 参数在该量级下拉不出；卡片角部高光、字母 label 未做（用户明确不加 label）。

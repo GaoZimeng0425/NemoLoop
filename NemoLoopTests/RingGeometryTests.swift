@@ -71,16 +71,18 @@ struct BladeLayoutTests {
     }
 }
 
-/// Pins WedgeShape's angle convention so the v4–v5.2 "+90° fan vs icons" bug can
-/// never come back: `centerAngle` is a SwiftUI angle (0 = +x, clockwise, y down),
-/// while RingView's slot angles are from-up-clockwise and MUST be converted (−π/2).
-struct WedgeShapeTests {
+/// Pins CardBladeShape's angle convention (inherited from WedgeShape) so the
+/// v4–v5.2 "+90° fan vs icons" bug can never come back: `centerAngle` is a SwiftUI
+/// angle (0 = +x, clockwise, y down), while RingView's slot angles are from-up-
+/// clockwise and MUST be converted (−π/2).
+struct CardBladeShapeTests {
     let rect = CGRect(x: 0, y: 0, width: 100, height: 100)
 
-    private func blade(centerAngle: Double, arcCenter: CGPoint? = nil) -> WedgeShape {
-        WedgeShape(index: 0, count: 1, innerRadius: 10, outerRadius: 50,
-                   cornerRadius: 0, centerAngle: centerAngle,
-                   bladeWidth: 30 * .pi / 180, arcCenter: arcCenter)
+    private func blade(centerAngle: Double, arcCenter: CGPoint? = nil,
+                       cornerRadius: CGFloat = 0) -> CardBladeShape {
+        CardBladeShape(innerRadius: 10, outerRadius: 50,
+                       cornerRadius: cornerRadius, centerAngle: centerAngle,
+                       bladeWidth: 30 * .pi / 180, arcCenter: arcCenter)
     }
 
     @Test func centerAngleIsSwiftUIConvention() {
@@ -106,6 +108,20 @@ struct WedgeShapeTests {
         let p = blade(centerAngle: -.pi / 2, arcCenter: CGPoint(x: 50, y: 80)).path(in: rect)
         #expect(p.contains(CGPoint(x: 50, y: 50)))    // 30pt above the arc centre
         #expect(!p.contains(CGPoint(x: 50, y: 20)))   // 60pt up: past the outer edge
+    }
+
+    @Test func filletsTrimCornersKeepBody() {
+        // Fixed geometry: arcCentre (50,50), radii 10/50, 30° wide, centred up.
+        // The outer-trail corner sits at (62.941, 1.704); a point 2pt along the
+        // outer edge plus 0.5pt into the band lies inside the sharp quad but in
+        // the region the fillet (tangent inset ≈ 7.8pt along that edge) cuts away.
+        let sharp = blade(centerAngle: -.pi / 2).path(in: rect)
+        let rounded = blade(centerAngle: -.pi / 2, cornerRadius: 6).path(in: rect)
+        let cutSample = CGPoint(x: 60.94, y: 2.20)
+        #expect(sharp.contains(cutSample))            // sanity: inside the sharp quad
+        #expect(!rounded.contains(cutSample))         // fillet trims the corner region
+        #expect(rounded.contains(CGPoint(x: 50, y: 20)))   // mid-band stays
+        #expect(rounded.contains(CGPoint(x: 50, y: 32)))   // inner band stays
     }
 }
 
