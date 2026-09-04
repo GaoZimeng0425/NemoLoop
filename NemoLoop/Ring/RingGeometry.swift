@@ -6,8 +6,9 @@ import Foundation
 ///
 /// Every blade is a fixed `bladeDegrees` sector. Up to 11 blades sit edge-to-edge
 /// (pitch == width), tiling at most `11 × 30° = 330°` so the wrap gap never shrinks
-/// below `arcGapDegrees`; beyond 11 the pitch compresses and blades overlap. The fan
-/// is centered on up, so the wrap gap sits centered on down.
+/// below `arcGapDegrees`; beyond 11 the pitch compresses and blades overlap. Blade 0
+/// is centered on 12 o'clock and the fan runs clockwise, leaving the wrap gap just
+/// counterclockwise of blade 0 (upper-left).
 struct BladeLayout: Equatable {
     let count: Int
     /// Blade angular width, degrees (fixed, from `RingTheme.bladeDegrees`).
@@ -15,9 +16,9 @@ struct BladeLayout: Equatable {
     /// Angle between neighbouring blade centers, degrees (≤ bladeWidth).
     let pitch: Double
 
-    /// From-up angle of blade 0's leading (counterclockwise) edge; the fan is
-    /// centered on up, so the wrap gap is centered on down.
-    var start: Double { -span / 2 }
+    /// From-up angle of blade 0's leading (counterclockwise) edge; blade 0 is
+    /// centered on up (12 o'clock), so the wrap gap sits just counterclockwise of it.
+    var start: Double { -bladeWidth / 2 }
     /// Total occupied arc, degrees: leading edge of blade 0 → trailing edge of blade N−1.
     var span: Double { Double(count - 1) * pitch + bladeWidth }
 

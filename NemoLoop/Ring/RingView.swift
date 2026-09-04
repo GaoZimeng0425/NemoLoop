@@ -12,8 +12,9 @@ struct RingView: View {
 
     private var bladeCount: Int { icons.count }
 
-    /// Angular layout shared with hit testing — fixed-width blades edge-to-edge, fan
-    /// centered on up, wrap gap centered on down (overlap only above 11 blades).
+    /// Angular layout shared with hit testing — fixed-width blades edge-to-edge,
+    /// blade 0 centered on 12 o'clock with the fan running clockwise, wrap gap just
+    /// counterclockwise of blade 0 (overlap only above 11 blades).
     private var layout: BladeLayout { BladeLayout.forCount(bladeCount) }
 
     init(icons: [NSImage?], viewModel: RingViewModel) {
@@ -29,9 +30,10 @@ struct RingView: View {
         ZStack {
             // Each item view: blade shape drawn AROUND its centred logo, the whole
             // view leaning in 3D. Fixed-width blades tile edge-to-edge in ascending
-            // index order, the fan centered on up; the wrap gap (centered on down)
-            // selects nothing. Above 11 blades the pitch compresses and each blade
-            // covers its CCW neighbour.
+            // index order, blade 0 centered on 12 o'clock and the rest clockwise;
+            // the wrap gap (just counterclockwise of blade 0) selects nothing.
+            // Above 11 blades the pitch compresses and each blade covers its CCW
+            // neighbour.
             ForEach(0..<bladeCount, id: \.self) { i in
                 bladeView(for: i)
             }
