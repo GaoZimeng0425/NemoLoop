@@ -136,6 +136,16 @@ struct RingView: View {
         // lies over the next — the tilt the reference reads as depth. The logo is
         // counter-rotated above, so it stays upright and undistorted.
         .rotationEffect(.degrees(RingTheme.bladeLeanDegrees), anchor: hinge)
+        // Depth tilt: each card tips back about the DIAGONAL between its radial and
+        // tangential axes, so its leading-outer corner is the far one and its
+        // trailing-inner corner the near one — near-big-far-small per card, the way
+        // a hand of fanned cards reads. (A tangential axis alone tips the outer edge
+        // back and barely bends the silhouette; a radial axis alone just narrows the
+        // card sideways.)
+        .rotation3DEffect(.degrees(RingTheme.bladeDepthTiltDegrees),
+                          axis: (x: (radial.x + cos(theta)) / 2.squareRoot(),
+                                 y: (radial.y + sin(theta)) / 2.squareRoot(), z: 0),
+                          perspective: RingTheme.bladeDepthPerspective)
         // Deal-out: before `appeared` each card sits a little inside the ring,
         // smaller and transparent; blade i springs into its slot after i · stagger,
         // so the fan unfolds clockwise from 12 o'clock card by card.

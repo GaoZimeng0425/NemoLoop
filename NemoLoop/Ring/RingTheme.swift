@@ -29,7 +29,13 @@ enum RingTheme {
     // what makes the fan look tilted. (rotation3DEffect was tried instead: at any
     // angle that stayed legible it barely bent the silhouette while visibly
     // stretching the logos — see spec v6.)
-    static let bladeLeanDegrees: Double = 5
+    static let bladeLeanDegrees: Double = -5
+    /// Per-card depth tilt (degrees) about the diagonal between the card's radial and
+    /// tangential axes: the leading-outer corner sinks, the trailing-inner corner
+    /// comes forward. This is the near-big-far-small cue; the logo rides it, so past
+    /// ~50° its perspective stretch starts to show.
+    static let bladeDepthTiltDegrees: Double = 15
+    static let bladeDepthPerspective: CGFloat = 0.4   // lower = stronger perspective
     static let bladeLeanHingeFraction: CGFloat = 0  // pivot along the band: 0 = logo centre, 1 = inner edge
     // Pivoting at the logo (0) is deliberate: with an inner-edge hinge every card
     // sweeps clockwise over its neighbour's leading edge, so the logo — centred on
