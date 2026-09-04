@@ -12,14 +12,15 @@ struct BladeLayoutTests {
         #expect(abs(layout.span - 180) < 0.001)   // 6 × 30°
     }
 
-    @Test func fanCenteredOnUp() {
+    @Test func bladeZeroCenteredOnUp() {
         for n in [1, 2, 6, 11] {
             let layout = BladeLayout.forCount(n)
-            #expect(abs(layout.start + layout.span / 2) < 0.001)  // start = −span/2
+            #expect(abs(layout.centerAngle(0)) < 0.001)   // blade 0 at 12 o'clock
+            #expect(abs(layout.start - (-layout.bladeWidth / 2)) < 0.001)
         }
         let six = BladeLayout.forCount(6)
-        #expect(abs(six.centerAngle(0) - (-75)) < 0.001)
-        #expect(abs(six.centerAngle(5) - 75) < 0.001)
+        #expect(abs(six.centerAngle(1) - 30) < 0.001)    // 0, 30, 60, … clockwise
+        #expect(abs(six.centerAngle(5) - 150) < 0.001)
     }
 
     @Test func elevenBladesFillTheArc() {
@@ -50,13 +51,15 @@ struct BladeLayoutTests {
 
     @Test func wrapGapReturnsNil() {
         let layout = BladeLayout.forCount(6)
-        // 6 blades occupy −90°…+90°; the 180° wrap gap is centered on down.
-        #expect(layout.index(forAngle: 180) == nil)   // bottom, middle of the gap
-        #expect(layout.index(forAngle: 95) == nil)    // just past blade 5's trailing edge
-        #expect(layout.index(forAngle: 265) == nil)   // just before blade 0's leading edge
+        // 6 blades occupy −15°…+165° (blade 0 centred on up, clockwise); the 180°
+        // wrap gap runs from blade 5's trailing edge around to blade 0's leading edge.
+        #expect(layout.index(forAngle: 255) == nil)   // middle of the gap, lower-left
+        #expect(layout.index(forAngle: 170) == nil)   // just past blade 5's trailing edge
+        #expect(layout.index(forAngle: 340) == nil)   // just before blade 0's leading edge
         // The boundary rays themselves still select their blade.
-        #expect(layout.index(forAngle: 90) == 5)
-        #expect(layout.index(forAngle: 270) == 0)
+        #expect(layout.index(forAngle: 165) == 5)
+        #expect(layout.index(forAngle: 345) == 0)
+        #expect(layout.index(forAngle: 350) == 0)     // "past" up is still blade 0
     }
 
     @Test func singleBlade() {
@@ -121,10 +124,9 @@ struct RingGeometryTests {
         #expect(RingGeometry.wedgeIndex(from: center, to: CGPoint(x: 110, y: 105), layout: .forCount(6), deadZoneRadius: dz) == nil)
     }
 
-    @Test func straightUpIsTheTwoThreeSeam() {
-        // 6 blades tile −90°…+90° symmetric on up: straight up is the seam between
-        // blades 2 and 3; the leading ray belongs to blade 3.
-        #expect(RingGeometry.wedgeIndex(from: center, to: CGPoint(x: 100, y: 200), layout: .forCount(6), deadZoneRadius: dz) == 3)
+    @Test func straightUpIsBladeZero() {
+        // Blade 0 is centred on 12 o'clock.
+        #expect(RingGeometry.wedgeIndex(from: center, to: CGPoint(x: 100, y: 200), layout: .forCount(6), deadZoneRadius: dz) == 0)
     }
 
     @Test func clockwiseBlades() {
