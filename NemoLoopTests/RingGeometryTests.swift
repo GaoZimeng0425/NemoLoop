@@ -71,16 +71,18 @@ struct BladeLayoutTests {
     }
 }
 
-/// Pins WedgeShape's angle convention so the v4–v5.2 "+90° fan vs icons" bug can
-/// never come back: `centerAngle` is a SwiftUI angle (0 = +x, clockwise, y down),
-/// while RingView's slot angles are from-up-clockwise and MUST be converted (−π/2).
-struct WedgeShapeTests {
+/// Pins CardBladeShape's angle convention (inherited from WedgeShape) so the
+/// v4–v5.2 "+90° fan vs icons" bug can never come back: `centerAngle` is a SwiftUI
+/// angle (0 = +x, clockwise, y down), while RingView's slot angles are from-up-
+/// clockwise and MUST be converted (−π/2).
+struct CardBladeShapeTests {
     let rect = CGRect(x: 0, y: 0, width: 100, height: 100)
 
-    private func blade(centerAngle: Double, arcCenter: CGPoint? = nil) -> WedgeShape {
-        WedgeShape(index: 0, count: 1, innerRadius: 10, outerRadius: 50,
-                   cornerRadius: 0, centerAngle: centerAngle,
-                   bladeWidth: 30 * .pi / 180, arcCenter: arcCenter)
+    private func blade(centerAngle: Double, arcCenter: CGPoint? = nil,
+                       cornerRadius: CGFloat = 0) -> CardBladeShape {
+        CardBladeShape(innerRadius: 10, outerRadius: 50,
+                       cornerRadius: cornerRadius, centerAngle: centerAngle,
+                       bladeWidth: 30 * .pi / 180, arcCenter: arcCenter)
     }
 
     @Test func centerAngleIsSwiftUIConvention() {
@@ -106,6 +108,38 @@ struct WedgeShapeTests {
         let p = blade(centerAngle: -.pi / 2, arcCenter: CGPoint(x: 50, y: 80)).path(in: rect)
         #expect(p.contains(CGPoint(x: 50, y: 50)))    // 30pt above the arc centre
         #expect(!p.contains(CGPoint(x: 50, y: 20)))   // 60pt up: past the outer edge
+    }
+
+    @Test func filletsTrimCornersKeepBody() {
+        // Own geometry: arcCentre (50,50), radii 40/80, 30° wide, centred up — a
+        // band deep enough that the per-corner clamp (the fillet may not eat more
+        // than a third of the half-width at the inner arc) leaves a real fillet.
+        func card(_ cr: CGFloat) -> Path {
+            CardBladeShape(innerRadius: 40, outerRadius: 80, cornerRadius: cr,
+                           centerAngle: -.pi / 2, bladeWidth: 30 * .pi / 180,
+                           arcCenter: CGPoint(x: 50, y: 50)).path(in: rect)
+        }
+        // 1.2pt inside the trailing outer corner along its interior bisector: inside
+        // the sharp card, inside the region a 12pt-nominal fillet rounds away.
+        let a1 = -75 * Double.pi / 180
+        let corner = CGPoint(x: 50 + 80 * cos(a1), y: 50 + 80 * sin(a1))
+        func unit(towards p: CGPoint) -> CGPoint {
+            let d = CGPoint(x: p.x - corner.x, y: p.y - corner.y)
+            let l = hypot(d.x, d.y)
+            return CGPoint(x: d.x / l, y: d.y / l)
+        }
+        let alongEdge = unit(towards: CGPoint(x: 50 + 80 * cos(a1 - 30 * Double.pi / 180),
+                                              y: 50 + 80 * sin(a1 - 30 * Double.pi / 180)))
+        let inward = unit(towards: CGPoint(x: 50 + 40 * cos(a1), y: 50 + 40 * sin(a1)))
+        let bis = CGPoint(x: alongEdge.x + inward.x, y: alongEdge.y + inward.y)
+        let bisLen = hypot(bis.x, bis.y)
+        let cutSample = CGPoint(x: corner.x + bis.x / bisLen * 1.2,
+                                y: corner.y + bis.y / bisLen * 1.2)
+
+        #expect(card(0).contains(cutSample))          // sanity: inside the sharp card
+        #expect(!card(12).contains(cutSample))        // fillet trims the corner region
+        #expect(card(12).contains(CGPoint(x: 50, y: -10)))   // outer band stays
+        #expect(card(12).contains(CGPoint(x: 50, y: 2)))     // inner band stays
     }
 }
 
