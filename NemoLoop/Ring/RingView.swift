@@ -27,10 +27,11 @@ struct RingView: View {
 
     var body: some View {
         ZStack {
-            // Each item view: blade shape + logo tilting together. Fixed-width
-            // blades tile edge-to-edge in ascending index order, the fan centered
-            // on up; the wrap gap (centered on down) selects nothing. Above 11
-            // blades the pitch compresses and each blade covers its CCW neighbour.
+            // Each item view: blade shape drawn AROUND its centred logo, the whole
+            // view leaning in 3D. Fixed-width blades tile edge-to-edge in ascending
+            // index order, the fan centered on up; the wrap gap (centered on down)
+            // selects nothing. Above 11 blades the pitch compresses and each blade
+            // covers its CCW neighbour.
             ForEach(0..<bladeCount, id: \.self) { i in
                 bladeView(for: i)
             }
@@ -54,32 +55,40 @@ struct RingView: View {
 
     // MARK: - Blades
 
+    /// One blade = one local view centred on the logo. The view sits at the blade's
+    /// slot point (slot angle θ, mid-band radius); the wedge's arc centre is offset
+    /// back toward the ring centre, so the blade is drawn AROUND the centred logo.
+    /// The 3D tilt pivots at the view centre — the logo itself — so no transform can
+    /// ever separate logo from blade.
     @ViewBuilder
     private func bladeView(for i: Int) -> some View {
-        let side = RingTheme.outerRadius * 2
         let theta = slotAngle(i)
-        let iconCenter = CGPoint(
-            x: side / 2 + RingTheme.midRadius * sin(theta),
-            y: side / 2 - RingTheme.midRadius * cos(theta))
+        // Outward radial unit at θ (canvas coords, y down) and the slot point.
+        let radial = (x: sin(theta), y: -cos(theta))
+        let slot = (x: RingTheme.midRadius * radial.x, y: RingTheme.midRadius * radial.y)
+        let side = RingTheme.bladeViewSide
+        // Ring centre expressed in the blade view's local coords.
+        let arcCenter = CGPoint(x: side / 2 - slot.x, y: side / 2 - slot.y)
         let shape = WedgeShape(index: 0, count: 1,
                                innerRadius: RingTheme.innerRadius,
                                outerRadius: RingTheme.outerRadius,
                                cornerRadius: RingTheme.bladeCornerRadius,
-                               centerAngle: theta,
-                               bladeWidth: layout.bladeWidth * .pi / 180)
+                               // WedgeShape speaks SwiftUI angles (0 = +x, clockwise,
+                               // y down); slot angles are from-up-clockwise. The −π/2
+                               // conversion is what keeps each blade under ITS logo —
+                               // feeding θ directly rotates the whole fan +90° (the
+                               // v4→v5.2 "logo not in blade / hover off" root cause).
+                               centerAngle: theta - .pi / 2,
+                               bladeWidth: layout.bladeWidth * .pi / 180,
+                               arcCenter: arcCenter)
         let isEmpty = icons[i] == nil
         let isHot = viewModel.highlightedIndex == i
 
-        Group {
-            // Frosted glass — SwiftUI-native Material (NSViewRepresentable effects
-            // don't follow Core Animation 3D transforms; multiple macOS 26
-            // glassEffects in one compositing group render only the last shape).
-            // Per-blade surface: translucent dark fill. Deliberately NOT a Material /
+        ZStack {
+            // Frosted surface: translucent dark fill. Deliberately NOT a Material /
             // VisualEffectView / glassEffect — platform-backed materials composite
-            // above their SwiftUI siblings and swallow them (render-proven twice:
-            // glassEffect in a compositing group, and Material hiding same-container
-            // icons). A translucent fill keeps the dark-glass look and transforms
-            // cleanly with the 3D tilt.
+            // above their SwiftUI siblings and swallow them, and NSViews ignore 3D
+            // transforms (render-proven; see spec).
             shape.fill(RingTheme.glassTint)
             if isHot && !isEmpty {
                 shape.fill(RingTheme.accentGradient)
@@ -91,20 +100,19 @@ struct RingView: View {
                 shape.fill(RingTheme.emptyFill)
             }
             shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
-            iconView(for: i).position(iconCenter)
+            iconView(for: i)   // centred — exactly on the tilt pivot
         }
         .frame(width: side, height: side)
-        // Per-blade drop shadow: each blade casts onto the one beneath it, making the
-        // overlap cascade legible (Dory's look).
+        // Per-blade drop shadow: each blade casts onto the one beneath it, making
+        // the seams legible (Dory's look).
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
-        // 3D lean about the tangential axis through the icon centre — only mounted
-        // when the tilt token is non-zero. Two pivot attempts (ring centre, icon
-        // centre) both rendered wrong in the real app, so v5.2 ships flat; the
-        // anchor math is kept so a retry is a one-token change.
-        .modifier(BladeTilt(theta: theta, side: side, iconCenter: iconCenter))
-        // Selected blade slides outward along its slot bisector.
-        .position(x: frameRadius + (isHot ? RingTheme.popOffset * sin(theta) : 0),
-                  y: frameRadius - (isHot ? RingTheme.popOffset * cos(theta) : 0))
+        // 3D lean about the tangential axis through the slot — the view centre, so
+        // the logo rides the pivot and the band foreshortens around it.
+        .rotation3DEffect(.degrees(RingTheme.blade3DTiltDegrees),
+                          axis: (x: cos(theta), y: sin(theta), z: 0),
+                          perspective: RingTheme.blade3DPerspective)
+        .position(x: frameRadius + slot.x + (isHot ? RingTheme.popOffset * radial.x : 0),
+                  y: frameRadius + slot.y + (isHot ? RingTheme.popOffset * radial.y : 0))
     }
 
     // MARK: - Icon
@@ -123,37 +131,13 @@ struct RingView: View {
     }
 }
 
-/// Per-blade 3D tilt, applied only when `RingTheme.blade3DTiltDegrees` is non-zero.
-/// Skipping the modifier entirely at 0° keeps the flat render on the exact code
-/// path that was pixel-verified (no identity-transform layer in between).
-private struct BladeTilt: ViewModifier {
-    let theta: Double
-    let side: CGFloat
-    let iconCenter: CGPoint
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if RingTheme.blade3DTiltDegrees == 0 {
-            content
-        } else {
-            // Axis = the blade's tangential direction, anchored at the mid-band icon
-            // centre so the logo stays on its slot (default .centre pivots at the
-            // canvas centre = ring centre and the perspective flings the logo off).
-            content.rotation3DEffect(
-                .degrees(RingTheme.blade3DTiltDegrees),
-                axis: (x: cos(theta), y: sin(theta), z: 0),
-                anchor: UnitPoint(x: iconCenter.x / side, y: iconCenter.y / side),
-                perspective: RingTheme.blade3DPerspective
-            )
-        }
-    }
-}
-
 /// A fan blade: an annular sector for index `i` of `count`. Blades are centered on
 /// evenly spaced slot angles starting at `startAngle + slice/2`, but each blade's own
 /// angular width `bladeWidth` can exceed the slot pitch `span/count`, so neighbouring
 /// blades overlap — each one tucks under the previous. An explicit `centerAngle`
-/// (radians, SwiftUI convention) overrides the slot placement entirely.
+/// (radians, SwiftUI convention) overrides the slot placement entirely, and
+/// `arcCenter` moves the arc centre away from the rect's centre so the blade can be
+/// drawn in a local view centred elsewhere (e.g. on its logo).
 /// `cornerRadius` rounds the four corners with circular fillets while keeping the
 /// outer/inner arcs and straight radial edges exact.
 struct WedgeShape: Shape {
@@ -166,9 +150,10 @@ struct WedgeShape: Shape {
     var span: Double = 2 * .pi
     var centerAngle: Double? = nil  // radians; overrides the slot-derived angle
     var bladeWidth: Double? = nil   // radians; defaults to the slot pitch
+    var arcCenter: CGPoint? = nil   // arc centre in local coords; nil = rect centre
 
     func path(in rect: CGRect) -> Path {
-        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let c = arcCenter ?? CGPoint(x: rect.midX, y: rect.midY)
         let slice = span / Double(count)
         // SwiftUI angles: 0 = +x (right), increasing clockwise (y down); -π/2 = up.
         let slotCenter = startAngle + slice / 2 + Double(index) * slice

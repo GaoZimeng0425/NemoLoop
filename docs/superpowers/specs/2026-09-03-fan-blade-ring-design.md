@@ -3,7 +3,7 @@
 **日期**: 2026-09-03
 **范围**: 环的视觉改为 Dory App Switcher 风格的**独立倾斜扇叶、一片压一片**布局
 **参考**: Dory App Switcher 高清截图（用户提供）——环扇楔片、相邻压叠、每片带独立倾角、图标正立
-**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除 → v5.1（用户：logo 不在扇面中）：**3D 倾斜轴锚到每片中带图标中心**（图标零位移归位扇面；v4 轴穿环心，透视把 logo 甩离槽位，亦是 v4 hover 观感错位主因），并恢复选中片外滑 6pt → v5.2（用户实机两次均不对）：**放弃 3D 倾斜，`blade3DTiltDegrees = 0` 纯平面**；变换由 `BladeTilt` 修饰符承载、token 非 0 才挂载（0° 时完全跳过,平面渲染走像素验证过的同一路径）
+**演进**: 2026-08-30 开口弧（误解为有缺口）→ 2026-09-03 早上圆角卡片（误解为矩形卡片）→ 同日 v1 同心扇形（用户：缺倾斜、叠放方向反）→ v2 独立倾斜（用户：线性叠放必然一片压两个/被两个压）→ v3 固定尺寸 + 收口缺口 → v4 独立 view + `rotation3DEffect` 切向轴 3D 倾斜 → 本方案 v5：**每个扇面固定 30°、以正上方为中心对称边贴边排布（最多 11 片铺满 330°），命中边界改按刀片边缘切分**——v4 的 hover 错位（命中按槽位中心取最近、视觉刀缝在前导边，两者系统性错开 `(片宽−间距)/2`）随之根除 → v5.1（用户：logo 不在扇面中）：**3D 倾斜轴锚到每片中带图标中心**（图标零位移归位扇面；v4 轴穿环心，透视把 logo 甩离槽位，亦是 v4 hover 观感错位主因），并恢复选中片外滑 6pt → v5.2（用户实机两次均不对）：**放弃 3D 倾斜，`blade3DTiltDegrees = 0` 纯平面**；变换由 `BladeTilt` 修饰符承载、token 非 0 才挂载（0° 时完全跳过,平面渲染走像素验证过的同一路径）→ v5.3（用户指令）：**每片改为"以 logo 为中心的局部 view"**——扇面围绕 logo 画（`WedgeShape.arcCenter` 把弧心偏移到环心方向）、view 整体 3D 倾斜；logo 恒在旋转 pivot 上,结构上不可能与扇面分离；`BladeTilt` 移除,恢复 tilt 20°。**同时修复自 v4 起的真根因:`WedgeShape.centerAngle` 是 SwiftUI 角(0=+x、顺时针、y 向下),渲染层却直接喂 from-up-cw 槽位角,整fan扇面相对图标/命中恒差 +90°——v4 以来"logo 不在扇面、hover 指哪亮哪都不对"皆源于此;新架构传入 `θ−π/2` 并由 `WedgeShapeTests` 锁死该约定**
 
 ## 平台视图坑（v4 实证，重要）
 
@@ -32,7 +32,7 @@
 
 ## 视图层（`RingView`，v4）
 
-- **每个 item 一个独立 view**：`Group { 表面填充 + 状态填充 + 描边 + logo(.position 于扇面视觉中心) }.frame(side).shadow(缝投影).rotation3DEffect(...).position(环心 + pop·径向)`——logo 与扇面同 view，随倾斜一起变换。
+- **每个 item 一个局部 view（v5.3）**：view 中心 = 该片槽位点（槽位角 θ、中径 68），**logo 恰在 view 中心**（ZStack 默认居中，无 .position 偏移）；`WedgeShape(centerAngle: θ−π/2, bladeWidth: 30°, arcCenter: 指向环心的偏移)` 把扇面**围绕 logo 画出**（局部坐标系里弧心 = `bladeViewSide/2 − 槽位向量`）。组装：`ZStack { 表面填充 + 状态填充 + 描边 + logo }.frame(bladeViewSide 64).shadow(缝投影).rotation3DEffect(切向轴, anchor 默认 .center = logo).position(环心 + 槽位向量 + pop·径向)`。旧结构（v1–v5.2，环心画布 + logo 偏移 68pt）在 3D 变换下会把画布内偏移的 logo 甩离扇面——v5.0/v5.1 分离的根因；新结构里 logo 在 pivot 上，任何变换都带着扇面刚体同动。
 - 形状 `WedgeShape(index: 0, count: 1, centerAngle: θ_i, bladeWidth: ω)`——`centerAngle` 参数（v4 加入）直接指定槽位角，形状自己完成槽位放置，**全程无 2D rotationEffect**（`rotation3DEffect` 与 `rotationEffect` 组合会破坏布局，渲染实验证实）。
 - 3D 倾斜（**v5.2 当前关闭：`blade3DTiltDegrees = 0`，`BladeTilt` 修饰符仅在该 token 非 0 时应用 `rotation3DEffect`，否则完全跳过**）：轴 = 该片切向 `(cos θ, sin θ, 0)`、`anchor:` 锚到该片图标中心（`UnitPoint(iconCenter/side)`）、perspective 0.75——历史教训：默认 `.center` 的轴穿环心，图标离轴 68pt 转后获 ±23pt z 位移，被透视甩离槽位；锚到图标后数学上图标零位移,但实机观感仍不对（两次尝试均被用户否决）,如重试需先用真实窗口截图验证。
 - 框半径 = `outerRadius + popOffset + shadowPad`；缺口不改变画布尺寸。

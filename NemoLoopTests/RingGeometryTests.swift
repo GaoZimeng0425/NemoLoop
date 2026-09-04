@@ -1,6 +1,7 @@
 import Testing
 import CoreGraphics
 import Foundation
+import SwiftUI
 @testable import NemoLoop
 
 struct BladeLayoutTests {
@@ -64,6 +65,44 @@ struct BladeLayoutTests {
         #expect(one.index(forAngle: 0) == 0)
         #expect(one.index(forAngle: 10) == 0)
         #expect(one.index(forAngle: 20) == nil)
+    }
+}
+
+/// Pins WedgeShape's angle convention so the v4–v5.2 "+90° fan vs icons" bug can
+/// never come back: `centerAngle` is a SwiftUI angle (0 = +x, clockwise, y down),
+/// while RingView's slot angles are from-up-clockwise and MUST be converted (−π/2).
+struct WedgeShapeTests {
+    let rect = CGRect(x: 0, y: 0, width: 100, height: 100)
+
+    private func blade(centerAngle: Double, arcCenter: CGPoint? = nil) -> WedgeShape {
+        WedgeShape(index: 0, count: 1, innerRadius: 10, outerRadius: 50,
+                   cornerRadius: 0, centerAngle: centerAngle,
+                   bladeWidth: 30 * .pi / 180, arcCenter: arcCenter)
+    }
+
+    @Test func centerAngleIsSwiftUIConvention() {
+        // −π/2 = up: the blade covers points above the arc centre, not right/below.
+        let p = blade(centerAngle: -.pi / 2).path(in: rect)
+        #expect(p.contains(CGPoint(x: 50, y: 20)))    // up, mid-band
+        #expect(!p.contains(CGPoint(x: 80, y: 50)))   // right = 90° away
+        #expect(!p.contains(CGPoint(x: 50, y: 80)))   // down = 180° away
+    }
+
+    @Test func fromUpClockwiseSlotsNeedMinusHalfPi() {
+        // A −75° (from-up, clockwise) slot blade covers its own ray, not straight up.
+        let p = blade(centerAngle: -75 * Double.pi / 180 - Double.pi / 2).path(in: rect)
+        let onRay = CGPoint(x: 50 + 40 * sin(-75 * Double.pi / 180),
+                            y: 50 - 40 * cos(-75 * Double.pi / 180))
+        #expect(p.contains(onRay))
+        #expect(!p.contains(CGPoint(x: 50, y: 20)))
+    }
+
+    @Test func arcCenterOffsetsTheArcCentre() {
+        // Local blade view: arc centre away from the rect centre keeps the band
+        // where the local geometry says it is.
+        let p = blade(centerAngle: -.pi / 2, arcCenter: CGPoint(x: 50, y: 80)).path(in: rect)
+        #expect(p.contains(CGPoint(x: 50, y: 50)))    // 30pt above the arc centre
+        #expect(!p.contains(CGPoint(x: 50, y: 20)))   // 60pt up: past the outer edge
     }
 }
 
