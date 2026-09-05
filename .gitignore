@@ -1,2 +1,5 @@
 # Claude Code worktree artifacts (transient nested checkouts)
 .claude/worktrees/
+
+# macOS
+.DS_Store

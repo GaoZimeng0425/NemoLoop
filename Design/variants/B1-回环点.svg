@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="bgB1" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#F7F3EA"/>
+    <stop offset="0.55" stop-color="#EAE3D3"/>
+    <stop offset="1" stop-color="#D7CEBA"/>
+  </linearGradient>
+  <radialGradient id="snB1" cx="0.5" cy="0.05" r="0.9">
+    <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+    <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+  </radialGradient>
+  <linearGradient id="fcB1" gradientUnits="userSpaceOnUse" x1="212" y1="812" x2="812" y2="212">
+    <stop offset="0" stop-color="#3A342E"/>
+    <stop offset="0.55" stop-color="#282320"/>
+    <stop offset="1" stop-color="#1D1A17"/>
+  </linearGradient>
+  <linearGradient id="htB1" gradientUnits="userSpaceOnUse" x1="312" y1="712" x2="712" y2="312">
+    <stop offset="0" stop-color="#EB9433"/>
+    <stop offset="1" stop-color="#DA7E20"/>
+  </linearGradient>
+  <filter id="csB1" filterUnits="userSpaceOnUse" x="-512" y="-512" width="1024" height="1024">
+    <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000000" flood-opacity="0.30"/>
+    <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.15"/>
+  </filter>
+  <filter id="hmB1" filterUnits="userSpaceOnUse" x="-512" y="-512" width="1024" height="1024">
+    <feDropShadow dx="0" dy="11" stdDeviation="11" flood-color="#000000" flood-opacity="0.34"/>
+    <feDropShadow dx="0" dy="0" stdDeviation="26" flood-color="#FFD9A0" flood-opacity="0.30"/>
+  </filter>
+</defs>
+
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bgB1)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#snB1)"/>
+<rect x="106" y="106" width="812" height="812" rx="180"
+      fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="3"/>
+
+<g transform="translate(512 512)">
+  <path d="M 43.41,-246.20 A 250.0 250.0 0 1 1 -234.92,-85.51" fill="none" stroke="url(#fcB1)" stroke-width="140.0" stroke-linecap="round"/>
+  <circle cx="-125.00" cy="-216.51" r="88" fill="url(#htB1)" filter="url(#hmB1)"/>
+</g>
+</svg>
