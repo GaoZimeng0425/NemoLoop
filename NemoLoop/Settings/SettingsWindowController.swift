@@ -8,17 +8,17 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var windowController: NSWindowController?
     private let chrome = SettingsChrome()
 
-    func show(store: SliceStore) {
+    func show(store: SliceStore, appearance: AppearanceStore) {
         NSApp.setActivationPolicy(.regular)
 
         if let existing = windowController {
             existing.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate()
+            forceFrontmost()
             return
         }
 
         let window = LuminareWindow {
-            SettingsView(store: store, chrome: self.chrome)
+            SettingsView(store: store, chrome: self.chrome, appearance: appearance)
         }
         window.title = "Settings"
         window.setContentSize(NSSize(width: 680, height: 480))
@@ -37,7 +37,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         self.windowController = wc
 
         wc.showWindow(nil)
-        NSApp.activate()
+        forceFrontmost()
+    }
+
+    /// The no-arg `NSApp.activate()` (macOS 14+) is cooperative: invoked from the
+    /// menu bar while another app owns focus, it loses and the window opens behind
+    /// that app. This show is always user-initiated, so a forceful raise is correct.
+    private func forceFrontmost() {
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func windowWillClose(_ notification: Notification) {

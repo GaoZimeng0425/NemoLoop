@@ -17,6 +17,7 @@ final class HotkeyService {
     private let runningApps: RunningAppsService
     private let controller: RingWindowController
     private let viewModel: RingViewModel
+    private let appearanceStore: AppearanceStore
 
     /// The action to run for the wedge the pointer is over when the current ring is released.
     private var onSelect: ((Int) -> Void)?
@@ -24,11 +25,13 @@ final class HotkeyService {
     init(store: SliceStore,
          runningApps: RunningAppsService,
          controller: RingWindowController,
-         viewModel: RingViewModel) {
+         viewModel: RingViewModel,
+         appearanceStore: AppearanceStore) {
         self.store = store
         self.runningApps = runningApps
         self.controller = controller
         self.viewModel = viewModel
+        self.appearanceStore = appearanceStore
     }
 
     func register() {
@@ -61,9 +64,7 @@ final class HotkeyService {
         guard !apps.isEmpty else { return }   // nothing to switch to → no ring
         summon(icons: apps.map(\.icon)) { index in
             guard apps.indices.contains(index) else { return }
-            if !apps[index].app.activate() {
-                NSLog("NemoLoop activate failed for \(apps[index].name)")
-            }
+            Launcher.switchTo(app: apps[index].app)
         }
     }
 
@@ -74,7 +75,8 @@ final class HotkeyService {
         let center = NSEvent.mouseLocation
         viewModel.begin(centerGlobal: center, wedgeCount: icons.count)
         let content = RingView(icons: icons, viewModel: viewModel)
-        controller.show(content: content, centeredAtGlobalPoint: center) { [weak self] in
+        controller.show(content: content, centeredAtGlobalPoint: center,
+                        appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()
         }
     }

@@ -9,4 +9,24 @@ enum Launcher {
             if let error { NSLog("NemoLoop launch failed for \(url.path): \(error)") }
         }
     }
+
+    /// Brings a running app forward the way a Dock click does. `NSRunningApplication
+    /// .activate()` alone leaves minimized windows in the Dock; openApplication on the
+    /// running instance re-delivers the reopen event, which restores them.
+    static func switchTo(app: NSRunningApplication) {
+        guard let url = app.bundleURL else {
+            if !app.activate() {
+                NSLog("NemoLoop activate failed for \(app.localizedName ?? app.bundleIdentifier ?? "?")")
+            }
+            return
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
+            if let error {
+                NSLog("NemoLoop switch to \(url.lastPathComponent) failed (\(error)); falling back to activate")
+                Task { @MainActor in _ = app.activate() }
+            }
+        }
+    }
 }

@@ -16,11 +16,19 @@ final class RingWindowController {
             ?? NSScreen.screens[0]
     }
 
-    func show(content: some View, centeredAtGlobalPoint center: CGPoint, onCancel: @escaping () -> Void) {
+    func show(content: some View,
+              centeredAtGlobalPoint center: CGPoint,
+              appearance: RingAppearance,
+              onCancel: @escaping () -> Void) {
         hide()
         let screen = screenForCursor()
         let panel = RingPanel(contentRect: screen.frame)
         panel.onCancel = onCancel
+        // Force the theme (or follow the system for .auto) BEFORE hosting: SwiftUI's
+        // colorScheme inside the NSHostingView — and so RingView's palette — derives
+        // from the panel's effective appearance. The panel is rebuilt on every show,
+        // so a changed setting applies on the next summon.
+        panel.appearance = appearance.nsAppearance
 
         // Convert global (bottom-left) center to the hosting view's top-left coords.
         let local = CGPoint(x: center.x - screen.frame.minX,

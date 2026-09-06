@@ -33,11 +33,13 @@ enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Bindable var store: SliceStore
     @Bindable var chrome: SettingsChrome
+    @Bindable var appearance: AppearanceStore
     @State private var tab: SettingsTab = .ring
 
-    init(store: SliceStore, chrome: SettingsChrome) {
+    init(store: SliceStore, chrome: SettingsChrome, appearance: AppearanceStore) {
         self._store = Bindable(store)
         self._chrome = Bindable(chrome)
+        self._appearance = Bindable(appearance)
     }
 
     private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
@@ -81,8 +83,26 @@ struct SettingsView: View {
         switch tab {
         case .ring: ringSettings
         case .general: placeholder("General settings coming soon.")
-        case .appearance: placeholder("Ring appearance options coming soon.")
+        case .appearance: appearanceSettings
         case .about: aboutSettings
+        }
+    }
+
+    @ViewBuilder private var appearanceSettings: some View {
+        LuminareSection(
+            "Theme",
+            "Ring card colours. Auto follows your system appearance; the next summon picks it up."
+        ) {
+            LuminarePicker(compactElements: RingAppearance.allCases, selection: $appearance.appearance) { option in
+                VStack(spacing: 6) {
+                    Image(systemName: option.iconName)
+                        .font(.system(size: 16))
+                    Text(option.label)
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
         }
     }
 
@@ -175,6 +195,25 @@ struct SettingsView: View {
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
             store.setSlot(url, at: index)
+        }
+    }
+}
+
+/// Theme picker presentation (UI strings live here, not on the model).
+extension RingAppearance {
+    var label: String {
+        switch self {
+        case .auto: "Auto"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .auto: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
         }
     }
 }

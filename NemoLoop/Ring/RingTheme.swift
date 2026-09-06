@@ -1,6 +1,57 @@
 // NemoLoop/Ring/RingTheme.swift
 import SwiftUI
 
+/// The scheme-dependent half of the ring's look: everything tuned to the blade
+/// card's own stock (fills, hairlines, face lighting, lift-off shadow). Geometry
+/// and motion don't change with appearance and stay in `RingTheme`. `light` is the
+/// verified v6.1 look, frozen; `dark` is its opaque warm-charcoal twin — no
+/// translucency, same as light: the card is paper, not glass.
+struct RingPalette: Equatable {
+    let glassTint: Color              // opaque card stock — no wallpaper showing through
+    let faceLightStart: Color         // inner-edge sheen of the face-lighting gradient
+    let faceLightEnd: Color           // outer-edge falloff
+    let baseFill: Color               // assigned, idle — visible tint over glass
+    let emptyFill: Color              // empty slot, idle
+    let highlightEmpty: Color         // empty slot, highlighted
+    let highlightFill: Color          // filled slot, highlighted — the card lights up
+    let dividerColor: Color           // hairline between stacked blades
+    let bladeCastColor: Color         // directional lift-off shadow
+
+    // Highlight is a WHITE brighten, not an accent fill: the accent gradient mixed
+    // the system accent with blue (orange + blue = mud on the light stock), and a
+    // saturated colour slab broke the frosted-card language. White needs scheme-
+    // specific opacity to read at all — over near-white stock a white 40% overlay
+    // moves luminance ~2%; over charcoal the same 40% would flip the card light.
+    static let light = RingPalette(
+        glassTint: Color(red: 0.95, green: 0.94, blue: 0.92),
+        faceLightStart: Color.white.opacity(0.18),
+        faceLightEnd: Color.black.opacity(0.06),
+        baseFill: Color.white.opacity(0.05),
+        emptyFill: Color.white.opacity(0.07),
+        highlightEmpty: Color.white.opacity(0.45),
+        highlightFill: Color.white.opacity(0.95),
+        dividerColor: Color.black.opacity(0.12),
+        bladeCastColor: Color.black.opacity(0.16))
+
+    static let dark = RingPalette(
+        // Warm charcoal stock; the white overlays become sheens and the hairline
+        // flips to a light one so it still reads on the dark card.
+        glassTint: Color(red: 0.13, green: 0.125, blue: 0.115),
+        faceLightStart: Color.white.opacity(0.10),
+        faceLightEnd: Color.black.opacity(0.22),
+        baseFill: Color.white.opacity(0.06),
+        emptyFill: Color.white.opacity(0.08),
+        highlightEmpty: Color.white.opacity(0.18),
+        highlightFill: Color.white.opacity(0.32),
+        dividerColor: Color.white.opacity(0.14),
+        // Dark wallpapers swallow shadows — the cast pushes harder to still lift.
+        bladeCastColor: Color.black.opacity(0.28))
+
+    static func palette(for scheme: ColorScheme) -> RingPalette {
+        scheme == .dark ? .dark : .light
+    }
+}
+
 enum RingTheme {
     // Fan-blade geometry (Dory-style): every blade is a fixed-width sector, laid out
     // edge-to-edge in a fan centered on up; 11 blades fill 330° and leave the gap.
@@ -45,30 +96,7 @@ enum RingTheme {
     static let popOffset: CGFloat = 6             // selected blade slides outward
     static let shadowPad: CGFloat = 14            // frame headroom for pop + shadow
 
-    // Per-blade frosted-glass backing: a LIGHT frosted card (Dory's look) over the
-    // wallpaper; icon tiles sit on it with the white overlays below.
-    static let glassTint = Color(red: 0.95, green: 0.94, blue: 0.92)   // opaque card stock — no wallpaper showing through
-
-    /// Face lighting: each card is brighter at its inner edge and falls off toward the
-    /// outer edge, so a flat plate reads as a tilted one (the reference's depth cue).
-    static let faceLightStart = Color.white.opacity(0.18)   // inner edge
-    static let faceLightEnd   = Color.black.opacity(0.06)   // outer edge
-
-    // Accent gradient (Loop's color1 → color2, diagonal)
-    static let accentStart = Color.accentColor
-    static let accentEnd   = Color.accentColor.mix(with: .blue, by: 0.45)
-    static var accentGradient: LinearGradient {
-        LinearGradient(colors: [accentStart, accentEnd],
-                       startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-
-    // Surfaces / state fills — translucent so the frosted glass shows through.
-    static let baseFill        = Color.white.opacity(0.05)   // assigned, idle — visible tint over glass
-    static let emptyFill       = Color.white.opacity(0.07)   // empty slot, idle
-    static let highlightEmpty  = Color.white.opacity(0.16)   // empty slot, highlighted
-
-    // Hairlines (Loop's quinary) — dark enough to read on the light frosted card
-    static let dividerColor = Color.black.opacity(0.12)
+    // Hairlines (Loop's quinary) — see RingPalette.dividerColor
     static let dividerWidth: CGFloat = 1
 
     // Icon
@@ -83,7 +111,6 @@ enum RingTheme {
     // Directional cast shadow (light from above): what makes each card look lifted
     // off the wallpaper rather than painted on it.
     static let bladeCastRadius: CGFloat = 10
-    static let bladeCastColor = Color.black.opacity(0.16)
     static let bladeCastOffset = CGSize(width: 0, height: 5)
 
     // Motion
@@ -93,8 +120,8 @@ enum RingTheme {
     // Deal-out: each blade springs into its slot from slightly inside the ring, in
     // index order (clockwise from 12 o'clock) — the fan unfolds card by card
     // instead of the whole ring sliding in as one piece.
-    static let bladeAppear = Animation.spring(response: 0.30, dampingFraction: 0.74)
-    static let bladeStagger: Double = 0.032       // delay per blade
+    static let bladeAppear = Animation.spring(response: 0.24, dampingFraction: 0.74)
+    static let bladeStagger: Double = 0.026       // delay per blade
     static let bladeAppearInset: CGFloat = 22     // starts this far toward the ring centre
     static let bladeAppearScale: CGFloat = 0.78   // and this much smaller
     static let highlight = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.16)

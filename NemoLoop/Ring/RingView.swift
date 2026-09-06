@@ -7,8 +7,13 @@ struct RingView: View {
     let icons: [NSImage?]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
+    // Follows the hosting panel's effective appearance: RingWindowController forces
+    // it from the Appearance setting (light/dark) or leaves it to the system (auto).
+    @Environment(\.colorScheme) private var scheme
 
     @State private var appeared = false
+
+    private var palette: RingPalette { RingPalette.palette(for: scheme) }
 
     private var bladeCount: Int { icons.count }
 
@@ -98,22 +103,22 @@ struct RingView: View {
             // VisualEffectView / glassEffect — platform-backed materials composite
             // above their SwiftUI siblings and swallow them, and NSViews ignore 3D
             // transforms (render-proven; see spec).
-            shape.fill(RingTheme.glassTint)
+            shape.fill(palette.glassTint)
             // Face lighting: bright at the inner (hinge) edge, falling off outward —
             // a flat plate reads as a tilted one. Gradient runs along the radial.
-            shape.fill(LinearGradient(colors: [RingTheme.faceLightStart, RingTheme.faceLightEnd],
+            shape.fill(LinearGradient(colors: [palette.faceLightStart, palette.faceLightEnd],
                                       startPoint: UnitPoint(x: 0.5 - radial.x * 0.5, y: 0.5 - radial.y * 0.5),
                                       endPoint: UnitPoint(x: 0.5 + radial.x * 0.5, y: 0.5 + radial.y * 0.5)))
             if isHot && !isEmpty {
-                shape.fill(RingTheme.accentGradient)
+                shape.fill(palette.highlightFill)
             } else if isHot {
-                shape.fill(RingTheme.highlightEmpty)
+                shape.fill(palette.highlightEmpty)
             } else if !isEmpty {
-                shape.fill(RingTheme.baseFill)
+                shape.fill(palette.baseFill)
             } else {
-                shape.fill(RingTheme.emptyFill)
+                shape.fill(palette.emptyFill)
             }
-            shape.stroke(RingTheme.dividerColor, lineWidth: RingTheme.dividerWidth)
+            shape.stroke(palette.dividerColor, lineWidth: RingTheme.dividerWidth)
             // Logo and card are ONE PIECE: the logo sits dead centre of the card —
             // its slot angle, mid-band radius, no nudges (every attempt to re-centre
             // it on the *exposed* strip instead reads as the logo coming loose)
@@ -128,7 +133,7 @@ struct RingView: View {
         // neighbour, so the shingling reads) plus a soft directional cast that lifts
         // the whole card off the wallpaper — the depth cue the reference leans on.
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
-        .shadow(color: RingTheme.bladeCastColor, radius: RingTheme.bladeCastRadius,
+        .shadow(color: palette.bladeCastColor, radius: RingTheme.bladeCastRadius,
                 x: RingTheme.bladeCastOffset.width, y: RingTheme.bladeCastOffset.height)
         // Fan-blade lean: pivot the whole card in plane about its inner edge (the
         // hinge), so its outer end swings clockwise past its neighbour's. The outer
@@ -157,9 +162,9 @@ struct RingView: View {
                     - (appeared ? 0 : RingTheme.bladeAppearInset * radial.y))
         .animation(RingTheme.bladeAppear.delay(Double(i) * RingTheme.bladeStagger), value: appeared)
         // Previous card over next: descending zIndex with index, so blade i shingles
-        // over blade i+1; the highlighted blade jumps above all of them so its pop
-        // reads on top of both neighbours.
-        .zIndex(Double(bladeCount - i) + (isHot ? Double(bladeCount) : 0))
+        // over blade i+1. The order holds on hover too: the hot blade pops outward
+        // and tints in place, staying tucked under its counterclockwise neighbour.
+        .zIndex(Double(bladeCount - i))
     }
 
     // MARK: - Icon

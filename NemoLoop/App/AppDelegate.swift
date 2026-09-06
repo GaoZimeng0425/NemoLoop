@@ -4,6 +4,7 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let sliceStore = SliceStore()
+    let appearanceStore = AppearanceStore()
     let runningAppsService = RunningAppsService()
     let ringController = RingWindowController()
     let ringViewModel = RingViewModel()
@@ -15,7 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let service = HotkeyService(store: sliceStore,
                                     runningApps: runningAppsService,
                                     controller: ringController,
-                                    viewModel: ringViewModel)
+                                    viewModel: ringViewModel,
+                                    appearanceStore: appearanceStore)
         service.register()
         self.hotkeyService = service
     }

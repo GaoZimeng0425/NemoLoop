@@ -13,7 +13,8 @@ struct NemoLoopApp: App {
                 Divider()
             }
             Button("Settings…") {
-                appDelegate.settingsWindowController.show(store: appDelegate.sliceStore)
+                appDelegate.settingsWindowController.show(store: appDelegate.sliceStore,
+                                                          appearance: appDelegate.appearanceStore)
             }
             Divider()
             Button("Quit NemoLoop") { NSApplication.shared.terminate(nil) }
