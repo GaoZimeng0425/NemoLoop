@@ -49,9 +49,19 @@ final class HotkeyService {
         }
     }
 
+    /// For the menu-bar panel's ring button: the drag ends with the pointer over
+    /// a blade, so the same release path that closes the hotkey flow picks it.
+    func releaseRing() {
+        release()
+    }
+
+    var isRingVisible: Bool { controller.isVisible }
+
     // MARK: - Summon flows
 
-    private func summonLauncher() {
+    /// Also the menu-bar panel's ring button: press pops the ring, release picks
+    /// the wedge — the button replays the hotkey's down/up choreography.
+    func summonLauncher() {
         summon(icons: store.icons) { [weak self] index in
             if let url = self?.store.config.slots[index] ?? nil {
                 Launcher.launch(url: url)
