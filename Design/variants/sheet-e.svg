@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="490" viewBox="0 0 1260 490">
+<rect width="1260" height="490" fill="#FFFFFF"/>
+<svg x="15" y="25" width="380" height="380" viewBox="0 0 1024 1024">
+<defs>
+  <path id="blE1" d="M -11.66,-145.53 A 146.0 146.0 0 0 1 11.66,-145.53 Q 35.32,-141.66 41.13,-164.95 L 73.54,-294.97 Q 82.25,-329.90 116.66,-319.36 A 340.0 340.0 0 0 0 -116.66,-319.36 Q -82.25,-329.90 -73.54,-294.97 L -41.13,-164.95 Q -35.32,-141.66 -11.66,-145.53 Z"/>
+  <linearGradient id="fcE1" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#3A342E"/>
+    <stop offset="0.55" stop-color="#282320"/>
+    <stop offset="1" stop-color="#1D1A17"/>
+  </linearGradient>
+  <linearGradient id="htE1" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#EB9433"/>
+    <stop offset="1" stop-color="#DA7E20"/>
+  </linearGradient>
+  <linearGradient id="bgE1" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#F7F3EA"/>
+    <stop offset="0.55" stop-color="#EAE3D3"/>
+    <stop offset="1" stop-color="#D7CEBA"/>
+  </linearGradient>
+  <radialGradient id="snE1" cx="0.5" cy="0.05" r="0.9">
+    <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+    <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="csE1" x="-45%" y="-45%" width="190%" height="190%">
+    <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000000" flood-opacity="0.3"/>
+    <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.15"/>
+  </filter>
+  <filter id="hmE1" x="-60%" y="-60%" width="220%" height="220%">
+    <feDropShadow dx="0" dy="11" stdDeviation="11" flood-color="#000000" flood-opacity="0.34"/>
+    <feDropShadow dx="0" dy="0" stdDeviation="26" flood-color="#FFD9A0" flood-opacity="0.30"/>
+  </filter>
+</defs>
+
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bgE1)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#snE1)"/>
+<rect x="106" y="106" width="812" height="812" rx="180"
+      fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="3"/>
+
+<g transform="translate(512 512)">
+  <use href="#blE1" transform="rotate(300)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(270)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(240)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(210)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(180)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(150)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(120)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(90)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(60)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="rotate(30)" fill="url(#fcE1)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE1)"/>
+  <use href="#blE1" transform="translate(0 -12.0)" fill="url(#htE1)" filter="url(#hmE1)"/>
+</g>
+</svg>
+<text x="205" y="449" text-anchor="middle" font-family="PingFang SC" font-size="30" fill="#3A3A3A">E1 · 适度圆角</text>
+<svg x="430" y="25" width="380" height="380" viewBox="0 0 1024 1024">
+<defs>
+  <path id="blE2" d="M -4.40,-145.93 A 146.0 146.0 0 0 1 4.40,-145.93 Q 34.08,-141.97 41.09,-171.14 L 68.17,-283.93 Q 79.37,-330.61 125.10,-316.15 A 340.0 340.0 0 0 0 -125.10,-316.15 Q -79.37,-330.61 -68.17,-283.93 L -41.09,-171.14 Q -34.08,-141.97 -4.40,-145.93 Z"/>
+  <linearGradient id="fcE2" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#3A342E"/>
+    <stop offset="0.55" stop-color="#282320"/>
+    <stop offset="1" stop-color="#1D1A17"/>
+  </linearGradient>
+  <linearGradient id="htE2" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#EB9433"/>
+    <stop offset="1" stop-color="#DA7E20"/>
+  </linearGradient>
+  <linearGradient id="bgE2" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#F7F3EA"/>
+    <stop offset="0.55" stop-color="#EAE3D3"/>
+    <stop offset="1" stop-color="#D7CEBA"/>
+  </linearGradient>
+  <radialGradient id="snE2" cx="0.5" cy="0.05" r="0.9">
+    <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+    <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="csE2" x="-45%" y="-45%" width="190%" height="190%">
+    <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000000" flood-opacity="0.3"/>
+    <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.15"/>
+  </filter>
+  <filter id="hmE2" x="-60%" y="-60%" width="220%" height="220%">
+    <feDropShadow dx="0" dy="11" stdDeviation="11" flood-color="#000000" flood-opacity="0.34"/>
+    <feDropShadow dx="0" dy="0" stdDeviation="26" flood-color="#FFD9A0" flood-opacity="0.30"/>
+  </filter>
+</defs>
+
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bgE2)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#snE2)"/>
+<rect x="106" y="106" width="812" height="812" rx="180"
+      fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="3"/>
+
+<g transform="translate(512 512)">
+  <use href="#blE2" transform="rotate(300)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(270)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(240)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(210)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(180)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(150)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(120)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(90)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(60)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="rotate(30)" fill="url(#fcE2)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE2)"/>
+  <use href="#blE2" transform="translate(0 -12.0)" fill="url(#htE2)" filter="url(#hmE2)"/>
+</g>
+</svg>
+<text x="620" y="449" text-anchor="middle" font-family="PingFang SC" font-size="30" fill="#3A3A3A">E2 · 更圆</text>
+<svg x="845" y="25" width="380" height="380" viewBox="0 0 1024 1024">
+<defs>
+  <path id="blE3" d="M -1.13,-146.00 A 146.0 146.0 0 0 1 1.13,-146.00 Q 32.84,-142.26 40.04,-173.44 L 62.99,-272.82 Q 76.48,-331.29 133.45,-312.71 A 340.0 340.0 0 0 0 -133.45,-312.71 Q -76.48,-331.29 -62.99,-272.82 L -40.04,-173.44 Q -32.84,-142.26 -1.13,-146.00 Z"/>
+  <linearGradient id="fcE3" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#3A342E"/>
+    <stop offset="0.55" stop-color="#282320"/>
+    <stop offset="1" stop-color="#1D1A17"/>
+  </linearGradient>
+  <linearGradient id="htE3" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#EB9433"/>
+    <stop offset="1" stop-color="#DA7E20"/>
+  </linearGradient>
+  <linearGradient id="bgE3" x1="0" y1="0" x2="0.6" y2="1">
+    <stop offset="0" stop-color="#F7F3EA"/>
+    <stop offset="0.55" stop-color="#EAE3D3"/>
+    <stop offset="1" stop-color="#D7CEBA"/>
+  </linearGradient>
+  <radialGradient id="snE3" cx="0.5" cy="0.05" r="0.9">
+    <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.35"/>
+    <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="csE3" x="-45%" y="-45%" width="190%" height="190%">
+    <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000000" flood-opacity="0.3"/>
+    <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.15"/>
+  </filter>
+  <filter id="hmE3" x="-60%" y="-60%" width="220%" height="220%">
+    <feDropShadow dx="0" dy="11" stdDeviation="11" flood-color="#000000" flood-opacity="0.34"/>
+    <feDropShadow dx="0" dy="0" stdDeviation="26" flood-color="#FFD9A0" flood-opacity="0.30"/>
+  </filter>
+</defs>
+
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bgE3)"/>
+<rect x="100" y="100" width="824" height="824" rx="185" fill="url(#snE3)"/>
+<rect x="106" y="106" width="812" height="812" rx="180"
+      fill="none" stroke="#000000" stroke-opacity="0.06" stroke-width="3"/>
+
+<g transform="translate(512 512)">
+  <use href="#blE3" transform="rotate(300)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(270)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(240)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(210)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(180)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(150)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(120)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(90)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(60)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="rotate(30)" fill="url(#fcE3)" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2" filter="url(#csE3)"/>
+  <use href="#blE3" transform="translate(0 -12.0)" fill="url(#htE3)" filter="url(#hmE3)"/>
+</g>
+</svg>
+<text x="1035" y="449" text-anchor="middle" font-family="PingFang SC" font-size="30" fill="#3A3A3A">E3 · 药丸圆角</text>
+</svg>

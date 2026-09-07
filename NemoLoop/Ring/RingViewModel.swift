@@ -19,7 +19,7 @@ final class RingViewModel {
     let deadZoneRadius: CGFloat = 36
 
     @ObservationIgnored private var centerGlobal: CGPoint = .zero
-    @ObservationIgnored private var wedgeCount: Int = SliceConfig.wedgeCount
+    @ObservationIgnored private var layout: BladeLayout = BladeLayout.forCount(SliceConfig.wedgeCount)
     @ObservationIgnored private var input: RingInput = .pointer
     @ObservationIgnored private var timer: Timer?
 
@@ -27,7 +27,7 @@ final class RingViewModel {
 
     func begin(centerGlobal: CGPoint, wedgeCount: Int, input: RingInput = .pointer) {
         self.centerGlobal = centerGlobal
-        self.wedgeCount = wedgeCount
+        self.layout = BladeLayout.forCount(wedgeCount)
         self.input = input
         self.highlightedIndex = nil
         self.isShown = true
@@ -53,7 +53,7 @@ final class RingViewModel {
             highlightedIndex = RingGeometry.wedgeIndex(
                 from: centerGlobal,
                 to: NSEvent.mouseLocation,
-                wedgeCount: wedgeCount,
+                layout: layout,
                 deadZoneRadius: deadZoneRadius
             )
         case let .vector(deadZone, provider):
@@ -63,7 +63,7 @@ final class RingViewModel {
             if let index = RingGeometry.wedgeIndex(
                 from: .zero,
                 to: provider(),
-                wedgeCount: wedgeCount,
+                layout: layout,
                 deadZoneRadius: deadZone
             ) {
                 highlightedIndex = index

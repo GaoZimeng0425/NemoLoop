@@ -3,3 +3,6 @@
 
 # Per-user Xcode state (window layout, breakpoints, scheme selection)
 xcuserdata/
+
+# macOS
+.DS_Store
