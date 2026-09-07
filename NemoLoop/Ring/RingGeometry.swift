@@ -87,9 +87,9 @@ enum RingGeometry {
     }
 
     /// Maps the pointer onto a sub-action of `parent`'s dealt-out ring.
-    /// Subs sit on the fan's own fixed 30° grid — sub j is centered
-    /// `j * bladeWidth` clockwise of the parent's center angle, seams on the
-    /// shared grid — and occupy the outer band `[innerRadius, outerRadius]`.
+    /// Subs sit on their own fixed pitch (`RingTheme.subPitchDegrees`) — sub j
+    /// is centered `j * pitch` clockwise of the parent's center angle, seams on
+    /// the pitch grid — and occupy the outer band `[innerRadius, outerRadius]`.
     /// Returns nil outside the dealt slots' span or radial band.
     static func subIndex(
         parent: Int,
@@ -107,7 +107,7 @@ enum RingGeometry {
         let center = layout.centerAngle(parent)
         let delta = ((angle - center + 180).truncatingRemainder(dividingBy: 360) + 360)
             .truncatingRemainder(dividingBy: 360) - 180
-        let slot = Int((delta / layout.bladeWidth).rounded())
+        let slot = Int((delta / RingTheme.subPitchDegrees).rounded())
         guard slot >= 0, slot < childCount else { return nil }
         return slot
     }

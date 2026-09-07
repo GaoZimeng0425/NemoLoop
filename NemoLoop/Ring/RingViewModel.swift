@@ -136,7 +136,9 @@ final class RingViewModel {
                 distance: distance,
                 layout: layout,
                 childCount: childrenCounts[open],
-                innerRadius: RingTheme.subBandInner,
+                // The band's inner edge is tucked UNDER the blades — pointer
+                // there still rides the parent, so sub hover starts at the rim.
+                innerRadius: RingTheme.outerRadius,
                 outerRadius: RingTheme.subBandOuter
             )
         }
