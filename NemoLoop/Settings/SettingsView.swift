@@ -47,34 +47,42 @@ struct SettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             if chrome.sidebarVisible {
-                sidebarCard
+                // Flush left sidebar, the way LuminareSidebar is meant to sit
+                // (see its own preview: sidebar | Divider | pane) — no floating
+                // card, no shadow, no inset.
+                sidebar
                     .transition(.move(edge: .leading).combined(with: .opacity))
+                Divider()
             }
-            LuminarePane(tab.title) {
+            LuminarePane {
                 paneContent
+            } header: {
+                // Leading-aligned tab title: the pane's plain-Text header gets
+                // centered by the button wrapper, which reads as a toolbar title.
+                Text(tab.title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .luminarePaneLayout(.stacked)
         }
         .animation(.smooth(duration: 0.25), value: chrome.sidebarVisible)
         .luminareTint(overridingWith: .accentColor)
+        // Rise into the titlebar strip: the pane header (tab name) then occupies
+        // the full-size-content titlebar as the single top bar, instead of
+        // stacking under the system title.
+        .ignoresSafeArea(.container, edges: .top)
     }
 
-    /// A floating, rounded sidebar card (inset with padding + shadow) rather than a flush edge sidebar.
-    private var sidebarCard: some View {
+    /// Edge-to-edge sidebar column: full window height, square to the window
+    /// edges; the hairline Divider in `body` separates it from the pane. The
+    /// extra top margin keeps the first tab clear of the traffic lights and the
+    /// titlebar toggle, which now share the strip the sidebar rises into.
+    private var sidebar: some View {
         LuminareSidebar {
             LuminareSidebarSection(selection: $tab, items: SettingsTab.allCases)
-              .padding(.vertical, 12)
+                .padding(.vertical, 12)
         }
+        .environment(\.luminareContentMarginsTop, 16)
         .frame(width: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-        )
-        .padding(.leading, 12)
-        .padding(.trailing, 4)
-        .padding(.bottom, 12)
-        .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 4)
     }
 
     // MARK: - Panes
