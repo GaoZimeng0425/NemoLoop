@@ -13,6 +13,7 @@ final class RingSummoner {
     private let runningApps: RunningAppsService
     private let controller: RingWindowController
     private let viewModel: RingViewModel
+    private let appearanceStore: AppearanceStore
 
     /// The action to run for the wedge that is selected when the current ring commits.
     private var onSelect: ((Int) -> Void)?
@@ -22,11 +23,13 @@ final class RingSummoner {
     init(store: SliceStore,
          runningApps: RunningAppsService,
          controller: RingWindowController,
-         viewModel: RingViewModel) {
+         viewModel: RingViewModel,
+         appearanceStore: AppearanceStore) {
         self.store = store
         self.runningApps = runningApps
         self.controller = controller
         self.viewModel = viewModel
+        self.appearanceStore = appearanceStore
     }
 
     // MARK: - Summon flows
@@ -44,9 +47,9 @@ final class RingSummoner {
         guard !apps.isEmpty else { return }   // nothing to switch to → no ring
         summon(icons: apps.map(\.icon), input: input) { index in
             guard apps.indices.contains(index) else { return }
-            if !apps[index].app.activate() {
-                NSLog("NemoLoop activate failed for \(apps[index].name)")
-            }
+            // openApplication on the running instance restores minimized windows
+            // (Dock-reopen semantics); bare activate() leaves them in the Dock.
+            Launcher.switchTo(app: apps[index].app)
         }
     }
 
@@ -57,7 +60,8 @@ final class RingSummoner {
         let center = ringCenter(for: input)
         viewModel.begin(centerGlobal: center, wedgeCount: icons.count, input: input)
         let content = RingView(icons: icons, viewModel: viewModel)
-        controller.show(content: content, centeredAtGlobalPoint: center) { [weak self] in
+        controller.show(content: content, centeredAtGlobalPoint: center,
+                        appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()
         }
     }

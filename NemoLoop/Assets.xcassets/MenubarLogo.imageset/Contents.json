@@ -1,0 +1,33 @@
+{
+  "images" : [
+    {
+      "filename" : "menubar-16.png",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "menubar-16@2x.png",
+      "idiom" : "mac",
+      "scale" : "2x"
+    },
+    {
+      "filename" : "menubar-18.png",
+      "idiom" : "mac",
+      "scale" : "1x",
+      "subtype" : "18pt"
+    },
+    {
+      "filename" : "menubar-18@2x.png",
+      "idiom" : "mac",
+      "scale" : "2x",
+      "subtype" : "18pt"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "properties" : {
+    "template-rendering-intent" : "template"
+  }
+}
