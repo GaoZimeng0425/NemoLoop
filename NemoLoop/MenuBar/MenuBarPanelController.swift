@@ -96,9 +96,9 @@ final class MenuBarPanelController {
                 self?.hidePanel()
                 Launcher.switchTo(app: app.app)
             },
-            onLaunchPinned: { [weak self] url in
+            onRunPinned: { [weak self] action in
                 self?.hidePanel()
-                Launcher.launch(url: url)
+                Launcher.run(action)
             },
             onOpenSettings: { [weak self] in
                 self?.hidePanel()

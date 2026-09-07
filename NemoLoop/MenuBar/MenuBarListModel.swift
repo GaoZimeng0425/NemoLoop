@@ -36,11 +36,13 @@ enum MenuBarListModel {
 
     /// Empty slots vanish; survivors keep slot order and remember their original
     /// slot so icon lookups hit `SliceStore`'s cache.
-    static func pinnedRows(_ slots: [URL?]) -> [Row] {
-        slots.enumerated().compactMap { slotIndex, url in
-            guard let url else { return nil }
-            let name = url.deletingPathExtension().lastPathComponent
-            return Row(id: url.path, name: name, isFrontmost: false, iconIndex: slotIndex)
+    static func pinnedRows(_ actions: [SlotAction?]) -> [Row] {
+        actions.enumerated().compactMap { slotIndex, action in
+            guard let action else { return nil }
+            return Row(id: action.identity,
+                       name: action.displayName,
+                       isFrontmost: false,
+                       iconIndex: slotIndex)
         }
     }
 }

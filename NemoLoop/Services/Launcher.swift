@@ -10,6 +10,19 @@ enum Launcher {
         }
     }
 
+    /// Runs any slot action: apps launch, folders open in Finder, system
+    /// actions fire.
+    static func run(_ action: SlotAction) {
+        switch action {
+        case .app(let url):
+            launch(url: url)
+        case .folder(let url):
+            NSWorkspace.shared.open(url)
+        case .system(let system):
+            system.perform()
+        }
+    }
+
     /// Brings a running app forward the way a Dock click does. `NSRunningApplication
     /// .activate()` alone leaves minimized windows in the Dock; openApplication on the
     /// running instance re-delivers the reopen event, which restores them.
