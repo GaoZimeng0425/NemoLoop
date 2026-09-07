@@ -202,73 +202,55 @@ struct SettingsView: View {
         }
     }
 
-    /// The sub-slot rows of one slot, indented under it: one row per child with
-    /// a remove control, then the add row (only while the slot has its own
-    /// action — sub-slots hang off a configured slot — and under the cap).
+    /// The sub-slot controls of one slot, indented under it: a right-aligned
+    /// strip of rounded icon buttons — one per sub-action (click removes, hover
+    /// shows the minus badge) — with the add button at the end. Adding stays
+    /// gated on a configured slot; an empty expanded slot explains why.
     @ViewBuilder
     private func subRows(_ i: Int, entry: SlotEntry) -> some View {
-        VStack(spacing: 0) {
-            ForEach(entry.children.indices, id: \.self) { j in
+        VStack(alignment: .trailing, spacing: 6) {
+            if !entry.children.isEmpty
+                || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
                 HStack(spacing: 8) {
-                    Image(nsImage: SliceStore.icon(for: entry.children[j]))
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: 18, height: 18)
-                    Text(entry.children[j].displayName)
-                        .font(.system(size: 12))
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button {
-                        withAnimation(.smooth(duration: 0.2)) {
-                            store.removeChild(at: i, offset: j)
-                        }
-                    } label: {
-                        Image(systemName: "minus.circle")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Remove sub-action")
-                }
-                .padding(.leading, 30)
-                .padding(.trailing, 8)
-                .padding(.vertical, 5)
-
-                if j < entry.children.count - 1
-                    || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
-                    Divider()
-                }
-            }
-
-            if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
-                Menu {
-                    Button("App…") { chooseChildApp(for: i) }
-                    Button("Folder…") { chooseChildFolder(for: i) }
-                    Menu("System") {
-                        ForEach(SystemAction.allCases) { system in
-                            Button(system.displayName) {
-                                store.addChild(.system(system), at: i)
+                    ForEach(entry.children.indices, id: \.self) { j in
+                        SubSlotChip(icon: SliceStore.icon(for: entry.children[j]),
+                                    name: entry.children[j].displayName) {
+                            withAnimation(.smooth(duration: 0.2)) {
+                                store.removeChild(at: i, offset: j)
                             }
                         }
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("Add Sub-action…")
-                        Spacer()
+
+                    if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
+                        Menu {
+                            Button("App…") { chooseChildApp(for: i) }
+                            Button("Folder…") { chooseChildFolder(for: i) }
+                            Menu("System") {
+                                ForEach(SystemAction.allCases) { system in
+                                    Button(system.displayName) {
+                                        store.addChild(.system(system), at: i)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 36, height: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        // The chip card wraps the MENU, not the label — a
+                        // borderless menu restyles its label and drops fills.
+                        .frame(width: 36, height: 36)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(.quinary.opacity(0.6)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+                        .help("Add Sub-action")
                     }
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 30)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 5)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
+                .padding(.vertical, 4)
             }
 
             if entry.action == nil, entry.children.isEmpty {
@@ -281,6 +263,7 @@ struct SettingsView: View {
                     .padding(.vertical, 5)
             }
         }
+        .padding(.trailing, 12)
         .padding(.bottom, 4)
     }
 
@@ -387,5 +370,46 @@ extension RingAppearance {
         case .light: "sun.max"
         case .dark: "moon"
         }
+    }
+}
+
+/// The 36pt rounded card frame shared by the sub-slot chip buttons.
+private struct SubSlotChipFrame: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: 8).fill(.quinary.opacity(0.6)))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// One sub-slot chip: the action's icon; hovering reveals the minus badge and
+/// clicking removes it (settings only configures — the ring runs these).
+private struct SubSlotChip: View {
+    let icon: NSImage
+    let name: String
+    let onRemove: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onRemove) {
+            Image(nsImage: icon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 22, height: 22)
+                .frame(width: 36, height: 36)
+                .modifier(SubSlotChipFrame())
+                .overlay(alignment: .topTrailing) {
+                    if hovering {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.red)
+                            .offset(x: 4, y: -4)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("Remove \(name)")
     }
 }
