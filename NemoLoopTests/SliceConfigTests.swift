@@ -4,38 +4,47 @@ import Foundation
 
 struct SliceConfigTests {
     @Test func initPadsToSixSlots() {
-        let c = SliceConfig(actions: [.app(URL(filePath: "/Applications/Safari.app"))])
-        #expect(c.actions.count == 6)
-        #expect(c.actions[0] == .app(URL(filePath: "/Applications/Safari.app")))
-        #expect(c.actions[5] == nil)
+        let c = SliceConfig(slots: [SlotEntry(action: .app(URL(filePath: "/Applications/Safari.app")))])
+        #expect(c.slots.count == 6)
+        #expect(c.slots[0].action == .app(URL(filePath: "/Applications/Safari.app")))
+        #expect(c.slots[5].action == nil)
+        #expect(c.slots[5].children.isEmpty)
     }
 
     @Test func initTruncatesBeyondSix() {
-        let actions: [SlotAction?] = (0..<8).map { .app(URL(filePath: "/A\($0).app")) }
-        #expect(SliceConfig(actions: actions).actions.count == 6)
+        let slots = (0..<8).map { SlotEntry(action: .app(URL(filePath: "/A\($0).app"))) }
+        #expect(SliceConfig(slots: slots).slots.count == 6)
     }
 
     @Test func codableRoundTrip() throws {
         var c = SliceConfig.empty
-        c.actions[2] = .app(URL(filePath: "/Applications/Notes.app"))
+        c.slots[2] = SlotEntry(action: .app(URL(filePath: "/Applications/Notes.app")))
         let data = try JSONEncoder().encode(c)
         let decoded = try JSONDecoder().decode(SliceConfig.self, from: data)
         #expect(decoded == c)
     }
 
-    @Test func mixedActionTypesRoundTrip() throws {
+    @Test func mixedActionTypesAndChildrenRoundTrip() throws {
         var c = SliceConfig.empty
-        c.actions[0] = .app(URL(filePath: "/Applications/Safari.app"))
-        c.actions[1] = .folder(URL(filePath: "/Users/x/Downloads"))
-        c.actions[2] = .system(.lockScreen)
-        c.actions[3] = .system(.missionControl)
+        c.slots[0] = SlotEntry(action: .app(URL(filePath: "/Applications/Safari.app")),
+                               children: [.folder(URL(filePath: "/Users/x/Downloads")),
+                                          .system(.lockScreen)])
+        c.slots[1] = SlotEntry(action: .folder(URL(filePath: "/Users/x/Downloads")))
+        c.slots[2] = SlotEntry(action: .system(.missionControl))
+        c.slots[3] = SlotEntry(children: [.system(.sleep)])   // subs without a parent action
         let data = try JSONEncoder().encode(c)
         let decoded = try JSONDecoder().decode(SliceConfig.self, from: data)
         #expect(decoded == c)
     }
 }
 
-struct SlotActionTests {
+struct SlotEntryTests {
+    @Test func childrenAreCappedAtMax() {
+        let many: [SlotAction] = (0..<6).map { .system(SystemAction.allCases[$0 % SystemAction.allCases.count]) }
+        let entry = SlotEntry(action: .system(.lockScreen), children: many)
+        #expect(entry.children.count == SlotEntry.maxChildren)
+    }
+
     @Test func identityIsStablePerKind() {
         let app = SlotAction.app(URL(fileURLWithPath: "/Applications/Safari.app"))
         let folder = SlotAction.folder(URL(fileURLWithPath: "/Applications"))
@@ -69,26 +78,52 @@ struct SliceStoreMigrationTests {
         return defaults
     }
 
-    @Test func legacyAppURLSlotsMigrateToAppActions() {
+    @Test func legacyAppURLSlotsMigrateToAppEntries() {
         let defaults = freshDefaults("migration")
         let urls: [URL?] = [URL(filePath: "/Applications/Safari.app"), nil]
         defaults.set(try! JSONEncoder().encode(urls), forKey: "nemoloop.sliceConfig")
 
         let store = SliceStore(defaults: defaults)
-        #expect(store.config.actions[0] == .app(URL(filePath: "/Applications/Safari.app")))
-        #expect(store.config.actions[1] == nil)
+        #expect(store.config.slots[0].action == .app(URL(filePath: "/Applications/Safari.app")))
+        #expect(store.config.slots[1].action == nil)
+        // Icons rebuilt for the migrated entries (Safari + five empties).
+        #expect(store.icons.count == SliceConfig.wedgeCount)
+    }
+
+    @Test func v2ActionArraysMigrateToEntries() throws {
+        let defaults = freshDefaults("migration-v2")
+        // The v2 payload shape: {"actions": [SlotAction?]}
+        struct V2: Codable { var actions: [SlotAction?] }
+        defaults.set(try JSONEncoder().encode(V2(actions: [nil, .app(URL(filePath: "/Applications/Notes.app"))])),
+                     forKey: "nemoloop.slotActions")
+
+        let store = SliceStore(defaults: defaults)
+        #expect(store.config.slots[0].action == nil)
+        #expect(store.config.slots[1].action == .app(URL(filePath: "/Applications/Notes.app")))
     }
 
     @Test func newFormatPersistsUnderItsOwnKey() throws {
         let defaults = freshDefaults("persist")
         let store = SliceStore(defaults: defaults)
         store.setAction(.system(.lockScreen), at: 4)
+        store.addChild(.folder(URL(filePath: "/Users/x/Downloads")), at: 4)
 
         let reread = SliceStore(defaults: defaults)
-        #expect(reread.config.actions[4] == .system(.lockScreen))
+        #expect(reread.config.slots[4].action == .system(.lockScreen))
+        #expect(reread.config.slots[4].children == [.folder(URL(filePath: "/Users/x/Downloads"))])
         // The stored payload is the new format, decodable as SliceConfig.
-        let data = try #require(defaults.data(forKey: "nemoloop.slotActions"))
-        #expect(try JSONDecoder().decode(SliceConfig.self, from: data).actions[4] == .system(.lockScreen))
+        let data = try #require(defaults.data(forKey: "nemoloop.slotEntries"))
+        #expect(try JSONDecoder().decode(SliceConfig.self, from: data).slots[4].action == .system(.lockScreen))
+    }
+
+    @Test func childMutationsRespectTheCap() {
+        let store = SliceStore(defaults: freshDefaults("cap"))
+        for i in 0..<6 {
+            store.addChild(.system(SystemAction.allCases[i % SystemAction.allCases.count]), at: 0)
+        }
+        #expect(store.config.slots[0].children.count == SlotEntry.maxChildren)
+        store.removeChild(at: 0, offset: 1)
+        #expect(store.config.slots[0].children.count == SlotEntry.maxChildren - 1)
     }
 
     @Test func noDataGivesEmptyConfig() {

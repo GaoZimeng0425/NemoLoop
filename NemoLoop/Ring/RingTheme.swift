@@ -120,6 +120,20 @@ enum RingTheme {
     static let bladeCastRadius: CGFloat = 10
     static let bladeCastOffset = CGSize(width: 0, height: 5)
 
+    // Cascading sub-wheel: dwell this long on a blade that has sub-actions and
+    // they deal out across the parent sector's outer band. Moving to another
+    // blade (or into the cancel state) sweeps them away. The band starts a
+    // little inside the parent's mid radius and pokes a little past its rim —
+    // a raised second tier, so white sub cards never sit white-on-white on a
+    // hot (highlighted) parent.
+    static let subDwellDuration: Double = 0.25
+    static let subBandInner: CGFloat = 88
+    static let subBandOuter: CGFloat = 140
+    static let subBladeOverlapDegrees: Double = 2
+    static let subCornerRadius: CGFloat = 6
+    static let subPopOffset: CGFloat = 4
+    static let subOpenParentDimOpacity: Double = 0.5
+
     // Motion
     // Pop-in is driven by RingView's local `appeared` @State on .onAppear, not a
     // transition — the panel hosts the view only after viewModel.isShown is already

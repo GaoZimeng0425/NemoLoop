@@ -32,29 +32,29 @@ struct MenuBarListModelTests {
     // MARK: - Pinned section
 
     @Test func pinnedRowsDropEmptySlotsAndKeepSlotOrder() {
-        let a = SlotAction.app(URL(fileURLWithPath: "/Applications/Safari.app"))
-        let b = SlotAction.app(URL(fileURLWithPath: "/Applications/Figma.app"))
-        let rows = MenuBarListModel.pinnedRows([a, nil, b, nil, nil, nil])
+        let a = SlotEntry(action: .app(URL(fileURLWithPath: "/Applications/Safari.app")))
+        let b = SlotEntry(action: .app(URL(fileURLWithPath: "/Applications/Figma.app")))
+        let rows = MenuBarListModel.pinnedRows([a, SlotEntry(), b, SlotEntry(), SlotEntry(), SlotEntry()])
         #expect(rows.map(\.name) == ["Safari", "Figma"])
         // iconIndex points at the ORIGINAL slot, so the view can fetch the cached icon.
         #expect(rows.map(\.iconIndex) == [0, 2])
     }
 
     @Test func pinnedRowNameDropsExtension() {
-        let sketch = SlotAction.app(URL(fileURLWithPath: "/Users/x/Desktop/design.sketch"))
+        let sketch = SlotEntry(action: .app(URL(fileURLWithPath: "/Users/x/Desktop/design.sketch")))
         let rows = MenuBarListModel.pinnedRows([sketch])
         #expect(rows.first?.name == "design")
     }
 
     @Test func pinnedRowIdIsTheFilePath() {
         let url = URL(fileURLWithPath: "/Applications/Safari.app")
-        #expect(MenuBarListModel.pinnedRows([.app(url)]).first?.id == url.path)
+        #expect(MenuBarListModel.pinnedRows([SlotEntry(action: .app(url))]).first?.id == url.path)
     }
 
     @Test func pinnedFoldersAndSystemActionsNameAndId() {
         let rows = MenuBarListModel.pinnedRows([
-            .folder(URL(fileURLWithPath: "/Users/x/Downloads")),
-            .system(.lockScreen),
+            SlotEntry(action: .folder(URL(fileURLWithPath: "/Users/x/Downloads"))),
+            SlotEntry(action: .system(.lockScreen)),
         ])
         #expect(rows.map(\.name) == ["Downloads", "Lock Screen"])
         #expect(rows.map(\.id) == ["/Users/x/Downloads", "system:lockScreen"])
@@ -64,6 +64,8 @@ struct MenuBarListModelTests {
     @Test func emptySectionsGiveEmptyRows() {
         #expect(MenuBarListModel.runningRows([], frontmostPID: 1).isEmpty)
         #expect(MenuBarListModel.pinnedRows([]).isEmpty)
-        #expect(MenuBarListModel.pinnedRows([nil, nil]).isEmpty)
+        #expect(MenuBarListModel.pinnedRows([SlotEntry(), SlotEntry()]).isEmpty)
+        // Sub-actions are ring-only: a slot with children but no action lists nothing.
+        #expect(MenuBarListModel.pinnedRows([SlotEntry(children: [.system(.sleep)])]).isEmpty)
     }
 }

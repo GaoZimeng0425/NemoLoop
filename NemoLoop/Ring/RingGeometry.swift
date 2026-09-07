@@ -76,4 +76,39 @@ enum RingGeometry {
             .truncatingRemainder(dividingBy: 360)
         return layout.index(forAngle: normalized)
     }
+
+    /// Pointer angle (from-up, clockwise, degrees in [0, 360)) from `center` to `point`.
+    static func angle(from center: CGPoint, to point: CGPoint) -> Double {
+        let dx = point.x - center.x
+        let dy = point.y - center.y
+        let angle = atan2(Double(dx), Double(dy)) * 180 / .pi
+        return (angle.truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360)
+    }
+
+    /// Maps the pointer onto a sub-action of `parent`'s dealt-out sector.
+    /// Sub-blades tile the parent's full angular width evenly (sub 0 is the
+    /// counterclockwise-most) and occupy the outer band `[innerRadius, outerRadius]`.
+    /// Returns nil outside the sector's angular span or radial band.
+    static func subIndex(
+        parent: Int,
+        angle: Double,
+        distance: CGFloat,
+        layout: BladeLayout,
+        childCount: Int,
+        innerRadius: CGFloat,
+        outerRadius: CGFloat
+    ) -> Int? {
+        guard childCount > 0 else { return nil }
+        guard distance >= innerRadius, distance <= outerRadius else { return nil }
+        // Signed offset from the parent's center angle, wrapping at ±180 so the
+        // last blades (near 165°) still measure their own sector, not the wrap.
+        let center = layout.centerAngle(parent)
+        let delta = ((angle - center + 180).truncatingRemainder(dividingBy: 360) + 360)
+            .truncatingRemainder(dividingBy: 360) - 180
+        let half = layout.bladeWidth / 2
+        guard abs(delta) <= half else { return nil }
+        let rel = (delta + half) / (half * 2)
+        return min(childCount - 1, Int(rel * Double(childCount)))
+    }
 }

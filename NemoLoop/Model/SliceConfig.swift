@@ -2,13 +2,13 @@ import Foundation
 
 struct SliceConfig: Codable, Equatable {
     static let wedgeCount = 6
-    var actions: [SlotAction?]
+    var slots: [SlotEntry]
 
-    init(actions: [SlotAction?]) {
-        var a = Array(actions.prefix(Self.wedgeCount))
-        while a.count < Self.wedgeCount { a.append(nil) }
-        self.actions = a
+    init(slots: [SlotEntry]) {
+        var s = Array(slots.prefix(Self.wedgeCount))
+        while s.count < Self.wedgeCount { s.append(SlotEntry()) }
+        self.slots = s
     }
 
-    static var empty: SliceConfig { SliceConfig(actions: []) }
+    static var empty: SliceConfig { SliceConfig(slots: []) }
 }

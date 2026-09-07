@@ -121,43 +121,70 @@ struct SettingsView: View {
 
         LuminareSection("Wedges") {
             ForEach(0..<SliceConfig.wedgeCount, id: \.self) { i in
-                LuminareCompose(alignment: .center) {
-                    HStack(spacing: 6) {
-                        Menu {
-                            Button("Choose App…") { chooseApp(for: i) }
-                            Button("Choose Folder…") { chooseFolder(for: i) }
-                            Menu("System Action") {
-                                ForEach(SystemAction.allCases) { system in
-                                    Button(system.displayName) {
-                                        store.setAction(.system(system), at: i)
+                wedgeRow(i)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func wedgeRow(_ i: Int) -> some View {
+        let entry = store.config.slots[i]
+        LuminareCompose(alignment: .center) {
+            HStack(spacing: 6) {
+                Menu {
+                    Button("Choose App…") { chooseApp(for: i) }
+                    Button("Choose Folder…") { chooseFolder(for: i) }
+                    Menu("System Action") {
+                        ForEach(SystemAction.allCases) { system in
+                            Button(system.displayName) {
+                                store.setAction(.system(system), at: i)
+                            }
+                        }
+                    }
+                    Divider()
+                    Section("Sub-actions (\(entry.children.count)/\(SlotEntry.maxChildren))") {
+                        if entry.children.count < SlotEntry.maxChildren {
+                            Menu("Add Sub-action…") {
+                                Button("App…") { chooseChildApp(for: i) }
+                                Button("Folder…") { chooseChildFolder(for: i) }
+                                Menu("System") {
+                                    ForEach(SystemAction.allCases) { system in
+                                        Button(system.displayName) {
+                                            store.addChild(.system(system), at: i)
+                                        }
                                     }
                                 }
                             }
-                        } label: {
-                            Text("Configure…")
                         }
-                        .fixedSize()
-                        Button("Clear") { store.setAction(nil, at: i) }
-                            .buttonStyle(.luminareCompact)
-                            .disabled(store.config.actions[i] == nil)
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Group {
-                            if let icon = store.icon(at: i) {
-                                Image(nsImage: icon)
-                                    .resizable()
-                                    .interpolation(.high)
-                            } else {
-                                Image(systemName: "app.dashed")
-                                    .resizable()
-                                    .foregroundStyle(.secondary)
+                        ForEach(entry.children.indices, id: \.self) { j in
+                            Button("Remove “\(entry.children[j].displayName)”") {
+                                store.removeChild(at: i, offset: j)
                             }
                         }
-                        .frame(width: 22, height: 22)
-                        Text(label(for: i))
+                    }
+                } label: {
+                    Text("Configure…")
+                }
+                .fixedSize()
+                Button("Clear") { store.setAction(nil, at: i) }
+                    .buttonStyle(.luminareCompact)
+                    .disabled(entry.action == nil && entry.children.isEmpty)
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Group {
+                    if let icon = store.icon(at: i) {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                    } else {
+                        Image(systemName: "app.dashed")
+                            .resizable()
+                            .foregroundStyle(.secondary)
                     }
                 }
+                .frame(width: 22, height: 22)
+                Text(label(for: i))
             }
         }
     }
@@ -193,33 +220,54 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private func label(for i: Int) -> String {
-        if let action = store.config.actions[i] {
-            return "\(wedgeNames[i]): \(action.displayName)"
-        }
-        return "\(wedgeNames[i]): (empty)"
+        let entry = store.config.slots[i]
+        let base = entry.action.map { "\(wedgeNames[i]): \($0.displayName)" }
+            ?? "\(wedgeNames[i]): (empty)"
+        return entry.children.isEmpty ? base : "\(base) · \(entry.children.count) subs"
     }
 
     private func chooseApp(for index: Int) {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [UTType.application]
-        panel.directoryURL = URL(filePath: "/Applications")
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        if panel.runModal() == .OK, let url = panel.url {
+        if let url = runOpenPanel(contentTypes: [.application],
+                                  directory: URL(filePath: "/Applications"),
+                                  canChooseDirectories: false) {
             store.setAction(.app(url), at: index)
         }
     }
 
     private func chooseFolder(for index: Int) {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.folder]
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        if panel.runModal() == .OK, let url = panel.url {
+        if let url = runOpenPanel(contentTypes: [.folder],
+                                  directory: FileManager.default.homeDirectoryForCurrentUser,
+                                  canChooseDirectories: true) {
             store.setAction(.folder(url), at: index)
         }
+    }
+
+    private func chooseChildApp(for index: Int) {
+        if let url = runOpenPanel(contentTypes: [.application],
+                                  directory: URL(filePath: "/Applications"),
+                                  canChooseDirectories: false) {
+            store.addChild(.app(url), at: index)
+        }
+    }
+
+    private func chooseChildFolder(for index: Int) {
+        if let url = runOpenPanel(contentTypes: [.folder],
+                                  directory: FileManager.default.homeDirectoryForCurrentUser,
+                                  canChooseDirectories: true) {
+            store.addChild(.folder(url), at: index)
+        }
+    }
+
+    private func runOpenPanel(contentTypes: [UTType],
+                              directory: URL,
+                              canChooseDirectories: Bool) -> URL? {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = contentTypes
+        panel.directoryURL = directory
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = canChooseDirectories
+        panel.canChooseFiles = !canChooseDirectories
+        return panel.runModal() == .OK ? panel.url : nil
     }
 }
 
