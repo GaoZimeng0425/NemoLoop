@@ -42,8 +42,6 @@ struct SettingsView: View {
         self._appearance = Bindable(appearance)
     }
 
-    private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
-
     var body: some View {
         HStack(spacing: 0) {
             if chrome.sidebarVisible {
@@ -171,9 +169,9 @@ struct SettingsView: View {
                         }
                     }
                 } label: {
-                    Text("Configure…")
+                    Text("Configure")
                 }
-                .fixedSize()
+                .buttonStyle(.luminareCompact)
                 Button("Clear") { store.setAction(nil, at: i) }
                     .buttonStyle(.luminareCompact)
                     .disabled(entry.action == nil && entry.children.isEmpty)
@@ -227,10 +225,15 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
+    /// Slots are numbered by ring order — blade 0 at 12 o'clock running
+    /// clockwise — not by compass position: the fan's wrap gap means half the
+    /// old "Upper-left"-style names pointed at nonexistent geometry.
+    private func slotName(_ i: Int) -> String { "Slot \(i + 1)" }
+
     private func label(for i: Int) -> String {
         let entry = store.config.slots[i]
-        let base = entry.action.map { "\(wedgeNames[i]): \($0.displayName)" }
-            ?? "\(wedgeNames[i]): (empty)"
+        let base = entry.action.map { "\(slotName(i)): \($0.displayName)" }
+            ?? "\(slotName(i)): (empty)"
         return entry.children.isEmpty ? base : "\(base) · \(entry.children.count) subs"
     }
 
