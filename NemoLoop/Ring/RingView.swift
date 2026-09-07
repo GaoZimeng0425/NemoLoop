@@ -233,7 +233,7 @@ struct RingView: View {
                                    centerAngle: theta - .pi / 2,
                                    bladeWidth: subWidth + RingTheme.subBladeOverlapDegrees * .pi / 180,
                                    arcCenter: arcCenter,
-                                   outerBow: 1)
+                                   outerBow: RingTheme.bladeOuterBow)
 
         ZStack {
             shape.fill(palette.glassTint)
@@ -252,10 +252,20 @@ struct RingView: View {
             }
             shape.stroke(palette.dividerColor, lineWidth: RingTheme.dividerWidth)
             iconView(icon, size: subIconSize(width: subWidth))
+                .rotationEffect(.degrees(theta * 180 / .pi))
         }
         .frame(width: side, height: side)
         .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
         .shadow(color: palette.bladeCastColor, radius: 5, x: 0, y: 3)
+        // The dealt-out tier speaks the same fan language as the blades —
+        // in-plane lean about the card centre, then the depth tilt on the
+        // radial/tangential diagonal — or it reads as flat stickers whose
+        // positions don't quite line up with the leaning fan around them.
+        .rotationEffect(.degrees(RingTheme.bladeLeanDegrees))
+        .rotation3DEffect(.degrees(RingTheme.bladeDepthTiltDegrees),
+                          axis: (x: (radial.x + cos(theta)) / 2.squareRoot(),
+                                 y: (radial.y + sin(theta)) / 2.squareRoot(), z: 0),
+                          perspective: RingTheme.bladeDepthPerspective)
         // Deal-in bound to state (not a transition): renders deterministically at
         // the final state offline, springs open in the live ring.
         .scaleEffect(viewModel.openSubIndex == parent ? 1 : 0.6)
