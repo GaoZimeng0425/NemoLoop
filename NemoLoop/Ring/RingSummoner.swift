@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor
 final class RingSummoner {
     /// Max wedges (open apps) shown by the running-apps ring.
-    static let maxRunningAppWedges = 10
+    static let maxRunningAppWedges = 11
 
     private let store: SliceStore
     private let runningApps: RunningAppsService
@@ -59,7 +59,11 @@ final class RingSummoner {
         self.onSelect = onSelect
         let center = ringCenter(for: input)
         viewModel.begin(centerGlobal: center, wedgeCount: icons.count, input: input)
-        let content = RingView(icons: icons, viewModel: viewModel)
+        let content: AnyView = SceneKitRingSpike.enabled
+            ? AnyView(SceneKitRingView(icons: icons, viewModel: viewModel)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea())
+            : AnyView(RingView(icons: icons, viewModel: viewModel))
         controller.show(content: content, centeredAtGlobalPoint: center,
                         appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()
