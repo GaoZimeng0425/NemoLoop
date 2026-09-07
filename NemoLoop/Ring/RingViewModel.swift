@@ -16,6 +16,10 @@ enum RingInput {
 final class RingViewModel {
     var isShown = false
     var highlightedIndex: Int?
+    /// True while the pointer sits beyond `RingTheme.cancelRadius` (outer-escape
+    /// cancel): RingView dims into the "safe cancel" look and `commit()` — which
+    /// already no-ops on a nil selection — runs nothing. Vector input never sets it.
+    var isCancelling = false
     let deadZoneRadius: CGFloat = 36
 
     @ObservationIgnored private var centerGlobal: CGPoint = .zero
@@ -30,6 +34,7 @@ final class RingViewModel {
         self.layout = BladeLayout.forCount(wedgeCount)
         self.input = input
         self.highlightedIndex = nil
+        self.isCancelling = false
         self.isShown = true
         timer?.invalidate()
         let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
@@ -44,22 +49,19 @@ final class RingViewModel {
         timer = nil
         isShown = false
         highlightedIndex = nil
+        isCancelling = false
         input = .pointer
     }
 
-    private func sample() {
+    func sample() {
         switch input {
         case .pointer:
-            highlightedIndex = RingGeometry.wedgeIndex(
-                from: centerGlobal,
-                to: NSEvent.mouseLocation,
-                layout: layout,
-                deadZoneRadius: deadZoneRadius
-            )
+            updatePointer(at: NSEvent.mouseLocation)
         case let .vector(deadZone, provider):
             // A stick vector is already relative to "center", so measure it from the origin.
             // Releasing the stick IS the commit gesture, so the aim must survive the trip back
-            // through the dead zone — keep the last selection instead of clearing it.
+            // through the dead zone — keep the last selection instead of clearing it, and
+            // never cancel (a saturated stick sits past any radius by definition).
             if let index = RingGeometry.wedgeIndex(
                 from: .zero,
                 to: provider(),
@@ -69,5 +71,26 @@ final class RingViewModel {
                 highlightedIndex = index
             }
         }
+    }
+
+    /// Pointer-sample core: selection with both radial bounds, plus the cancel state
+    /// past the cancel radius. Split out of `sample()` so the rules stay testable
+    /// without live mouse locations.
+    func updatePointer(at point: CGPoint) {
+        let dx = point.x - centerGlobal.x
+        let dy = point.y - centerGlobal.y
+        if hypot(dx, dy) > RingTheme.cancelRadius {
+            isCancelling = true
+            highlightedIndex = nil
+            return
+        }
+        isCancelling = false
+        highlightedIndex = RingGeometry.wedgeIndex(
+            from: centerGlobal,
+            to: point,
+            layout: layout,
+            deadZoneRadius: deadZoneRadius,
+            outerRadius: RingTheme.outerRadius
+        )
     }
 }

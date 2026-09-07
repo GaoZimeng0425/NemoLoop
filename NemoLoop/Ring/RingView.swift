@@ -23,8 +23,15 @@ struct RingView: View {
     private var layout: BladeLayout { BladeLayout.forCount(bladeCount) }
 
     init(icons: [NSImage?], viewModel: RingViewModel) {
+        self.init(icons: icons, viewModel: viewModel, preAppeared: false)
+    }
+
+    /// `preAppeared` renders the settled fan (deal-out already done) — the seam
+    /// offline render probes use, since `onAppear` never fires outside a window.
+    init(icons: [NSImage?], viewModel: RingViewModel, preAppeared: Bool) {
         self.icons = icons
         self._viewModel = Bindable(viewModel)
+        self._appeared = State(initialValue: preAppeared)
     }
 
     private var frameRadius: CGFloat {
@@ -40,15 +47,24 @@ struct RingView: View {
             // Every blade renders wider than the pitch and zIndex runs REVERSED
             // (blade 0 topmost), so each blade shingles over its clockwise
             // neighbour — the previous card presses on the next, Dory-style.
-            ForEach(0..<bladeCount, id: \.self) { i in
-                bladeView(for: i)
+            // Safe-cancel (outer escape): while the pointer is beyond the cancel
+            // radius the whole fan dims to one translucent plate (composited first,
+            // so overlapping shingles don't double-brighten through each other) —
+            // release there commits nothing.
+            Group {
+                ForEach(0..<bladeCount, id: \.self) { i in
+                    bladeView(for: i)
+                }
             }
+            .compositingGroup()
+            .opacity(viewModel.isCancelling ? RingTheme.cancelDimOpacity : 1)
         }
         .frame(width: frameRadius * 2, height: frameRadius * 2)
         .compositingGroup()
         .shadow(color: RingTheme.shadowColor, radius: RingTheme.shadowRadius)
         .position(center)
         .animation(RingTheme.highlight, value: viewModel.highlightedIndex)
+        .animation(.easeOut(duration: 0.14), value: viewModel.isCancelling)
         .onAppear { appeared = true }
     }
 
