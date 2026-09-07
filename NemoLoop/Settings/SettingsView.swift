@@ -156,28 +156,38 @@ struct SettingsView: View {
                         Text("Configure")
                     }
                     .buttonStyle(.luminareCompact)
-                    Button("Clear") { store.setAction(nil, at: i) }
-                        .buttonStyle(.luminareCompact)
-                        .disabled(entry.action == nil && entry.children.isEmpty)
+                    Button("Clear") {
+                        withAnimation(.smooth(duration: 0.2)) {
+                            store.setAction(nil, at: i)
+                            expandedSlots.remove(i)
+                        }
+                    }
+                    .buttonStyle(.luminareCompact)
+                    .disabled(entry.action == nil && entry.children.isEmpty)
                 }
             } label: {
                 HStack(spacing: 8) {
-                    Button {
-                        withAnimation(.smooth(duration: 0.2)) {
-                            if expandedSlots.contains(i) {
-                                expandedSlots.remove(i)
-                            } else {
-                                expandedSlots.insert(i)
+                    // Only configured slots unfold — sub-slots hang off a
+                    // configured slot, so an empty slot has nothing to expand.
+                    // (Legacy children without an action stay manageable.)
+                    if entry.action != nil || !entry.children.isEmpty {
+                        Button {
+                            withAnimation(.smooth(duration: 0.2)) {
+                                if expandedSlots.contains(i) {
+                                    expandedSlots.remove(i)
+                                } else {
+                                    expandedSlots.insert(i)
+                                }
                             }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .rotationEffect(.degrees(expandedSlots.contains(i) ? 90 : 0))
+                                .foregroundStyle(.secondary)
+                                .contentShape(Rectangle())
                         }
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .rotationEffect(.degrees(expandedSlots.contains(i) ? 90 : 0))
-                            .foregroundStyle(.secondary)
-                            .contentShape(Rectangle())
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
 
                     Group {
                         if let icon = store.icon(at: i) {
@@ -253,16 +263,8 @@ struct SettingsView: View {
                 .padding(.vertical, 4)
             }
 
-            if entry.action == nil, entry.children.isEmpty {
-                Text("Configure this slot first — sub-actions hang off a configured slot.")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 30)
-                    .padding(.trailing, 8)
-                    .padding(.vertical, 5)
-            }
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.trailing, 12)
         .padding(.bottom, 4)
     }
