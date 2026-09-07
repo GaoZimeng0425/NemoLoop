@@ -148,23 +148,28 @@ struct SettingsView: View {
                         }
                     }
                     Divider()
-                    Section("Sub-actions (\(entry.children.count)/\(SlotEntry.maxChildren))") {
-                        if entry.children.count < SlotEntry.maxChildren {
-                            Menu("Add Sub-action…") {
-                                Button("App…") { chooseChildApp(for: i) }
-                                Button("Folder…") { chooseChildFolder(for: i) }
-                                Menu("System") {
-                                    ForEach(SystemAction.allCases) { system in
-                                        Button(system.displayName) {
-                                            store.addChild(.system(system), at: i)
+                    // Sub-actions are a second level UNDER a configured slot:
+                    // adding is only offered once the slot has its own action
+                    // (removal stays available for anything already attached).
+                    if entry.action != nil || !entry.children.isEmpty {
+                        Section("Sub-actions (\(entry.children.count)/\(SlotEntry.maxChildren))") {
+                            if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
+                                Menu("Add Sub-action…") {
+                                    Button("App…") { chooseChildApp(for: i) }
+                                    Button("Folder…") { chooseChildFolder(for: i) }
+                                    Menu("System") {
+                                        ForEach(SystemAction.allCases) { system in
+                                            Button(system.displayName) {
+                                                store.addChild(.system(system), at: i)
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        ForEach(entry.children.indices, id: \.self) { j in
-                            Button("Remove “\(entry.children[j].displayName)”") {
-                                store.removeChild(at: i, offset: j)
+                            ForEach(entry.children.indices, id: \.self) { j in
+                                Button("Remove “\(entry.children[j].displayName)”") {
+                                    store.removeChild(at: i, offset: j)
+                                }
                             }
                         }
                     }

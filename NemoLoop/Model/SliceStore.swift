@@ -50,8 +50,11 @@ final class SliceStore {
         config.slots[index].action = action
     }
 
+    /// Sub-actions hang off a CONFIGURED slot — the parent must have an action
+    /// before it can take children, so a sub-wheel never appears on an empty blade.
     func addChild(_ child: SlotAction, at index: Int) {
         guard config.slots.indices.contains(index),
+              config.slots[index].action != nil,
               config.slots[index].children.count < SlotEntry.maxChildren else { return }
         config.slots[index].children.append(child)
     }

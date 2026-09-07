@@ -35,8 +35,11 @@ struct RingView: View {
         self._appeared = State(initialValue: preAppeared)
     }
 
+    /// Canvas radius: the blades, or the dealt-out sub ring when that extends
+    /// farther (it sits outside the fan), plus pop and shadow headroom.
     private var frameRadius: CGFloat {
-        RingTheme.outerRadius + RingTheme.popOffset + RingTheme.shadowPad
+        max(RingTheme.outerRadius, RingTheme.subBandOuter)
+            + RingTheme.subPopOffset + RingTheme.shadowPad
     }
 
     var body: some View {

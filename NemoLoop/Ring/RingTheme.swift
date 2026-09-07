@@ -121,14 +121,16 @@ enum RingTheme {
     static let bladeCastOffset = CGSize(width: 0, height: 5)
 
     // Cascading sub-wheel: dwell this long on a blade that has sub-actions and
-    // they deal out across the parent sector's outer band. Moving to another
-    // blade (or into the cancel state) sweeps them away. The band starts a
-    // little inside the parent's mid radius and pokes a little past its rim —
-    // a raised second tier, so white sub cards never sit white-on-white on a
-    // hot (highlighted) parent.
+    // they deal out as a second ring OUTSIDE the fan — past the hot parent's
+    // popped rim (outerRadius + popOffset = 136), with a 2pt seam, so the tier
+    // reads as a next ring rather than an overlay on the blade. Moving to
+    // another blade (or into the cancel state) sweeps them away. While the
+    // wheel is open the cancel boundary moves out past the subs, or hovering
+    // a sub would read as outer-escape.
     static let subDwellDuration: Double = 0.25
-    static let subBandInner: CGFloat = 88
-    static let subBandOuter: CGFloat = 140
+    static let subBandInner: CGFloat = 138
+    static let subBandOuter: CGFloat = 190
+    static var subCancelRadius: CGFloat { subBandOuter + 16 }
     static let subBladeOverlapDegrees: Double = 2
     static let subCornerRadius: CGFloat = 6
     static let subPopOffset: CGFloat = 4
