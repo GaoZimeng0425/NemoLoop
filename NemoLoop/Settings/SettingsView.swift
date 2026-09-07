@@ -35,6 +35,8 @@ struct SettingsView: View {
     @Bindable var chrome: SettingsChrome
     @Bindable var appearance: AppearanceStore
     @State private var tab: SettingsTab = .ring
+    /// Which slot groups have their sub-action rows unfolded.
+    @State private var expandedSlots: Set<Int> = []
 
     init(store: SliceStore, chrome: SettingsChrome, appearance: AppearanceStore) {
         self._store = Bindable(store)
@@ -135,69 +137,151 @@ struct SettingsView: View {
     @ViewBuilder
     private func wedgeRow(_ i: Int) -> some View {
         let entry = store.config.slots[i]
-        LuminareCompose(alignment: .center) {
-            HStack(spacing: 6) {
-                Menu {
-                    Button("Choose App…") { chooseApp(for: i) }
-                    Button("Choose Folder…") { chooseFolder(for: i) }
-                    Menu("System Action") {
-                        ForEach(SystemAction.allCases) { system in
-                            Button(system.displayName) {
-                                store.setAction(.system(system), at: i)
+        // One collapsible group: the slot row, and when expanded its sub-slot
+        // rows beneath (indented), ending with the add row.
+        VStack(spacing: 0) {
+            LuminareCompose(alignment: .center) {
+                HStack(spacing: 6) {
+                    Menu {
+                        Button("Choose App…") { chooseApp(for: i) }
+                        Button("Choose Folder…") { chooseFolder(for: i) }
+                        Menu("System Action") {
+                            ForEach(SystemAction.allCases) { system in
+                                Button(system.displayName) {
+                                    store.setAction(.system(system), at: i)
+                                }
                             }
                         }
+                    } label: {
+                        Text("Configure")
                     }
-                    Divider()
-                    // Sub-actions are a second level UNDER a configured slot:
-                    // adding is only offered once the slot has its own action
-                    // (removal stays available for anything already attached).
-                    if entry.action != nil || !entry.children.isEmpty {
-                        Section("Sub-actions (\(entry.children.count)/\(SlotEntry.maxChildren))") {
-                            if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
-                                Menu("Add Sub-action…") {
-                                    Button("App…") { chooseChildApp(for: i) }
-                                    Button("Folder…") { chooseChildFolder(for: i) }
-                                    Menu("System") {
-                                        ForEach(SystemAction.allCases) { system in
-                                            Button(system.displayName) {
-                                                store.addChild(.system(system), at: i)
-                                            }
-                                        }
-                                    }
-                                }
+                    .buttonStyle(.luminareCompact)
+                    Button("Clear") { store.setAction(nil, at: i) }
+                        .buttonStyle(.luminareCompact)
+                        .disabled(entry.action == nil && entry.children.isEmpty)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Button {
+                        withAnimation(.smooth(duration: 0.2)) {
+                            if expandedSlots.contains(i) {
+                                expandedSlots.remove(i)
+                            } else {
+                                expandedSlots.insert(i)
                             }
-                            ForEach(entry.children.indices, id: \.self) { j in
-                                Button("Remove “\(entry.children[j].displayName)”") {
-                                    store.removeChild(at: i, offset: j)
-                                }
+                        }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .rotationEffect(.degrees(expandedSlots.contains(i) ? 90 : 0))
+                            .foregroundStyle(.secondary)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Group {
+                        if let icon = store.icon(at: i) {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .interpolation(.high)
+                        } else {
+                            Image(systemName: "app.dashed")
+                                .resizable()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 22, height: 22)
+                    Text(label(for: i))
+                }
+            }
+
+            if expandedSlots.contains(i) {
+                subRows(i, entry: entry)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    /// The sub-slot rows of one slot, indented under it: one row per child with
+    /// a remove control, then the add row (only while the slot has its own
+    /// action — sub-slots hang off a configured slot — and under the cap).
+    @ViewBuilder
+    private func subRows(_ i: Int, entry: SlotEntry) -> some View {
+        VStack(spacing: 0) {
+            ForEach(entry.children.indices, id: \.self) { j in
+                HStack(spacing: 8) {
+                    Image(nsImage: SliceStore.icon(for: entry.children[j]))
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 18, height: 18)
+                    Text(entry.children[j].displayName)
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button {
+                        withAnimation(.smooth(duration: 0.2)) {
+                            store.removeChild(at: i, offset: j)
+                        }
+                    } label: {
+                        Image(systemName: "minus.circle")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove sub-action")
+                }
+                .padding(.leading, 30)
+                .padding(.trailing, 8)
+                .padding(.vertical, 5)
+
+                if j < entry.children.count - 1
+                    || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
+                    Divider()
+                }
+            }
+
+            if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
+                Menu {
+                    Button("App…") { chooseChildApp(for: i) }
+                    Button("Folder…") { chooseChildFolder(for: i) }
+                    Menu("System") {
+                        ForEach(SystemAction.allCases) { system in
+                            Button(system.displayName) {
+                                store.addChild(.system(system), at: i)
                             }
                         }
                     }
                 } label: {
-                    Text("Configure")
-                }
-                .buttonStyle(.luminareCompact)
-                Button("Clear") { store.setAction(nil, at: i) }
-                    .buttonStyle(.luminareCompact)
-                    .disabled(entry.action == nil && entry.children.isEmpty)
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Group {
-                    if let icon = store.icon(at: i) {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .interpolation(.high)
-                    } else {
-                        Image(systemName: "app.dashed")
-                            .resizable()
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Add Sub-action…")
+                        Spacer()
                     }
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 30)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 5)
+                    .contentShape(Rectangle())
                 }
-                .frame(width: 22, height: 22)
-                Text(label(for: i))
+                .buttonStyle(.plain)
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+            }
+
+            if entry.action == nil, entry.children.isEmpty {
+                Text("Configure this slot first — sub-actions hang off a configured slot.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 30)
+                    .padding(.trailing, 8)
+                    .padding(.vertical, 5)
             }
         }
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder private func placeholder(_ text: String) -> some View {
