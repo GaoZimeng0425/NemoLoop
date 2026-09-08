@@ -7,7 +7,7 @@ import SwiftUI
 @MainActor
 final class RingSummoner {
     /// Max wedges (open apps) shown by the running-apps ring.
-    static let maxRunningAppWedges = 10
+    static let maxRunningAppWedges = 11
 
     private let store: SliceStore
     private let runningApps: RunningAppsService
