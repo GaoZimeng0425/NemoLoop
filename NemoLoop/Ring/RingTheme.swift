@@ -96,6 +96,13 @@ enum RingTheme {
     static let popOffset: CGFloat = 6             // selected blade slides outward
     static let shadowPad: CGFloat = 14            // frame headroom for pop + shadow
 
+    // Outer-escape cancel: past the blades there is a short grace band where nothing
+    // selects (so brushing the rim doesn't drop a selection), and past the cancel
+    // radius the ring dims into the translucent "safe cancel" state — releasing
+    // there commits nothing.
+    static var cancelRadius: CGFloat { outerRadius + 16 }
+    static let cancelDimOpacity: Double = 0.35
+
     // Hairlines (Loop's quinary) — see RingPalette.dividerColor
     static let dividerWidth: CGFloat = 1
 

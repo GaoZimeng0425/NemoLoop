@@ -181,6 +181,27 @@ struct RingGeometryTests {
         #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: gapCenter), layout: layout, deadZoneRadius: dz) == nil)
     }
 
+    @Test func outerRadiusCutoff() {
+        // Outer-escape cancel: past the blades' outer edge nothing selects — the
+        // pointer angle alone no longer owns a wedge at any distance.
+        let outer: CGFloat = 130
+        let layout = BladeLayout.forCount(6)
+        #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: 0, radius: outer - 10),
+                                        layout: layout, deadZoneRadius: dz, outerRadius: outer) == 0)
+        #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: 0, radius: outer + 1),
+                                        layout: layout, deadZoneRadius: dz, outerRadius: outer) == nil)
+        #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: 60, radius: 500),
+                                        layout: layout, deadZoneRadius: dz, outerRadius: outer) == nil)
+    }
+
+    @Test func noOuterRadiusKeepsAngleOnlyBehavior() {
+        // Vector (gamepad) input omits the cutoff: a stick vector saturates past
+        // any radius and must keep selecting by angle.
+        let layout = BladeLayout.forCount(6)
+        #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: 0, radius: 900),
+                                        layout: layout, deadZoneRadius: dz) == 0)
+    }
+
     @Test func dynamicCountMapsAcrossArc() {
         let layout = BladeLayout.forCount(3)
         #expect(RingGeometry.wedgeIndex(from: center, to: point(atDegrees: layout.centerAngle(0)), layout: layout, deadZoneRadius: dz) == 0)

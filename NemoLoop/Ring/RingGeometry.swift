@@ -54,16 +54,21 @@ struct BladeLayout: Equatable {
 
 enum RingGeometry {
     /// Maps the vector from `center` to `point` onto a blade index.
-    /// Returns nil when within `deadZoneRadius` or when the pointer sits in the wrap gap.
+    /// Returns nil when within `deadZoneRadius`, past `outerRadius` (outer-escape:
+    /// pointer angle alone stops owning a wedge beyond the blades — pass nil to keep
+    /// the angle-only behavior saturated stick vectors need), or in the wrap gap.
     static func wedgeIndex(
         from center: CGPoint,
         to point: CGPoint,
         layout: BladeLayout,
-        deadZoneRadius: CGFloat
+        deadZoneRadius: CGFloat,
+        outerRadius: CGFloat? = nil
     ) -> Int? {
         let dx = point.x - center.x
         let dy = point.y - center.y
-        if (dx * dx + dy * dy) < (deadZoneRadius * deadZoneRadius) { return nil }
+        let distanceSquared = dx * dx + dy * dy
+        if distanceSquared < (deadZoneRadius * deadZoneRadius) { return nil }
+        if let outerRadius, distanceSquared > (outerRadius * outerRadius) { return nil }
 
         // atan2(dx, dy): 0 at +Y (up), increasing toward +X (right) = clockwise.
         let angle = atan2(Double(dx), Double(dy)) * 180 / .pi
