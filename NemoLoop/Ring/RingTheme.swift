@@ -128,7 +128,7 @@ enum RingTheme {
     // cancel boundary moves out past the subs, or hovering a sub would read as
     // outer-escape.
     static let subDwellDuration: Double = 0.25
-    static let subPitchDegrees: Double = 10
+    static let subPitchDegrees: Double = 15
     static let subBandInner: CGFloat = 122
     static let subBandOuter: CGFloat = subBandInner + (outerRadius - innerRadius)
     static var subCancelRadius: CGFloat { subBandOuter + 16 }
