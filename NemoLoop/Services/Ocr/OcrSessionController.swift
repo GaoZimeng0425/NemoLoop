@@ -71,8 +71,9 @@ final class OcrSessionController {
                 }
                 showResult(rows: rows, near: rect, screen: screen)
             } catch {
-                NSLog("NemoLoop OCR: recognition failed (\(error.localizedDescription))")
-                showToast("OCR failed")
+                NSLog("NemoLoop OCR: failed (\(error))")
+                let detail = String(error.localizedDescription.prefix(48))
+                showToast("OCR failed: \(detail)")
             }
         }
     }

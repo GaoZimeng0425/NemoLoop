@@ -15,7 +15,7 @@ final class OcrPermissionPanel: NSPanel {
         let origin = NSPoint(x: screen.frame.midX - size.width / 2,
                              y: screen.frame.midY - size.height / 2 - 180)
         super.init(contentRect: NSRect(origin: origin, size: size),
-                   styleMask: [.borderless, .titled, .nonactivatingPanel],
+                   styleMask: [.borderless, .nonactivatingPanel],
                    backing: .buffered, defer: false)
         isOpaque = false
         backgroundColor = .clear
@@ -47,14 +47,9 @@ final class OcrPermissionPanel: NSPanel {
         openSettings.action = #selector(openSettingsClicked)
         stack.addArrangedSubview(openSettings)
         stack.edgeInsets = NSEdgeInsets(top: 12, left: 8, bottom: 12, right: 8)
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: stack.superview!.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: stack.superview!.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: stack.superview!.topAnchor),
-            stack.bottomAnchor.constraint(equalTo: stack.superview!.bottomAnchor),
-        ])
         contentView = stack
+        stack.frame = NSRect(origin: .zero, size: size)
+        stack.autoresizingMask = [.width, .height]
 
         startPolling()
     }

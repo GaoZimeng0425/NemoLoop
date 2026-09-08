@@ -53,5 +53,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--settings") {
             settingsWindowController.show(store: sliceStore, appearance: appearanceStore)
         }
+        // Verification affordance: auto-start the OCR selection 2s after launch.
+        if CommandLine.arguments.contains("--ocr-test") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                OcrSessionController.shared.handleOcrRequested()
+            }
+        }
     }
 }
