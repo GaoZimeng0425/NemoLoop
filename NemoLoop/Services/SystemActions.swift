@@ -12,6 +12,7 @@ extension SystemAction {
         case .sleepDisplays: Self.runTool("/usr/bin/pmset", ["displaysleepnow"])
         case .sleep: Self.runTool("/usr/bin/pmset", ["sleepnow"])
         case .missionControl: Self.postControlUpArrow()
+        case .ocr: OcrSessionController.shared.handleOcrRequested()
         }
     }
 

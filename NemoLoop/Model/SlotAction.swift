@@ -8,6 +8,7 @@ enum SystemAction: String, Codable, CaseIterable, Identifiable {
     case sleepDisplays
     case sleep
     case missionControl
+    case ocr
 
     var id: String { rawValue }
 
@@ -17,6 +18,7 @@ enum SystemAction: String, Codable, CaseIterable, Identifiable {
         case .sleepDisplays: "Sleep Displays"
         case .sleep: "Sleep"
         case .missionControl: "Mission Control"
+        case .ocr: "OCR"
         }
     }
 
@@ -26,6 +28,7 @@ enum SystemAction: String, Codable, CaseIterable, Identifiable {
         case .sleepDisplays: "display"
         case .sleep: "moon.zzz"
         case .missionControl: "square.grid.3x3"
+        case .ocr: "doc.text.viewfinder"
         }
     }
 }
