@@ -32,8 +32,8 @@ struct MenuBarListModelTests {
     // MARK: - Pinned section
 
     @Test func pinnedRowsDropEmptySlotsAndKeepSlotOrder() {
-        let a = URL(fileURLWithPath: "/Applications/Safari.app")
-        let b = URL(fileURLWithPath: "/Applications/Figma.app")
+        let a = SlotAction.app(URL(fileURLWithPath: "/Applications/Safari.app"))
+        let b = SlotAction.app(URL(fileURLWithPath: "/Applications/Figma.app"))
         let rows = MenuBarListModel.pinnedRows([a, nil, b, nil, nil, nil])
         #expect(rows.map(\.name) == ["Safari", "Figma"])
         // iconIndex points at the ORIGINAL slot, so the view can fetch the cached icon.
@@ -41,14 +41,24 @@ struct MenuBarListModelTests {
     }
 
     @Test func pinnedRowNameDropsExtension() {
-        let sketch = URL(fileURLWithPath: "/Users/x/Desktop/design.sketch")
+        let sketch = SlotAction.app(URL(fileURLWithPath: "/Users/x/Desktop/design.sketch"))
         let rows = MenuBarListModel.pinnedRows([sketch])
         #expect(rows.first?.name == "design")
     }
 
     @Test func pinnedRowIdIsTheFilePath() {
         let url = URL(fileURLWithPath: "/Applications/Safari.app")
-        #expect(MenuBarListModel.pinnedRows([url]).first?.id == url.path)
+        #expect(MenuBarListModel.pinnedRows([.app(url)]).first?.id == url.path)
+    }
+
+    @Test func pinnedFoldersAndSystemActionsNameAndId() {
+        let rows = MenuBarListModel.pinnedRows([
+            .folder(URL(fileURLWithPath: "/Users/x/Downloads")),
+            .system(.lockScreen),
+        ])
+        #expect(rows.map(\.name) == ["Downloads", "Lock Screen"])
+        #expect(rows.map(\.id) == ["/Users/x/Downloads", "system:lockScreen"])
+        #expect(rows.allSatisfy { !$0.isFrontmost })
     }
 
     @Test func emptySectionsGiveEmptyRows() {

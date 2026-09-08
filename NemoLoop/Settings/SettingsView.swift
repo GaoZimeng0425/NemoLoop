@@ -123,11 +123,23 @@ struct SettingsView: View {
             ForEach(0..<SliceConfig.wedgeCount, id: \.self) { i in
                 LuminareCompose(alignment: .center) {
                     HStack(spacing: 6) {
-                        Button("Choose…") { chooseApp(for: i) }
+                        Menu {
+                            Button("Choose App…") { chooseApp(for: i) }
+                            Button("Choose Folder…") { chooseFolder(for: i) }
+                            Menu("System Action") {
+                                ForEach(SystemAction.allCases) { system in
+                                    Button(system.displayName) {
+                                        store.setAction(.system(system), at: i)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Text("Configure…")
+                        }
+                        .fixedSize()
+                        Button("Clear") { store.setAction(nil, at: i) }
                             .buttonStyle(.luminareCompact)
-                        Button("Clear") { store.setSlot(nil, at: i) }
-                            .buttonStyle(.luminareCompact)
-                            .disabled(store.config.slots[i] == nil)
+                            .disabled(store.config.actions[i] == nil)
                     }
                 } label: {
                     HStack(spacing: 8) {
@@ -181,8 +193,8 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private func label(for i: Int) -> String {
-        if let url = store.config.slots[i] {
-            return "\(wedgeNames[i]): \(url.deletingPathExtension().lastPathComponent)"
+        if let action = store.config.actions[i] {
+            return "\(wedgeNames[i]): \(action.displayName)"
         }
         return "\(wedgeNames[i]): (empty)"
     }
@@ -194,7 +206,19 @@ struct SettingsView: View {
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         if panel.runModal() == .OK, let url = panel.url {
-            store.setSlot(url, at: index)
+            store.setAction(.app(url), at: index)
+        }
+    }
+
+    private func chooseFolder(for index: Int) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.folder]
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        if panel.runModal() == .OK, let url = panel.url {
+            store.setAction(.folder(url), at: index)
         }
     }
 }

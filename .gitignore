@@ -6,3 +6,6 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Xcode build products
+build/

@@ -36,8 +36,8 @@ final class RingSummoner {
 
     func summonLauncher(input: RingInput = .pointer) {
         summon(icons: store.icons, input: input) { [weak self] index in
-            if let url = self?.store.config.slots[index] ?? nil {
-                Launcher.launch(url: url)
+            if let action = self?.store.config.actions[index] {
+                Launcher.run(action)
             }
         }
     }

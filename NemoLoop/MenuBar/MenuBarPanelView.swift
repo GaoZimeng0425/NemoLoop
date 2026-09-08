@@ -51,7 +51,7 @@ struct MenuBarPanelView: View {
     let onRingPress: () -> Void
     let onRingRelease: () -> Void
     let onOpenApp: (RunningApp) -> Void
-    let onLaunchPinned: (URL) -> Void
+    let onRunPinned: (SlotAction) -> Void
     let onOpenSettings: () -> Void
     let onQuit: () -> Void
     let onHeightChange: (CGFloat) -> Void
@@ -99,7 +99,7 @@ struct MenuBarPanelView: View {
             let entries = running.map { MenuBarListModel.AppEntry(id: $0.id, name: $0.name) }
             return MenuBarListModel.runningRows(entries, frontmostPID: frontmostPID)
         case .pinned:
-            return MenuBarListModel.pinnedRows(sliceStore.config.slots)
+            return MenuBarListModel.pinnedRows(sliceStore.config.actions)
         }
     }
 
@@ -144,7 +144,10 @@ struct MenuBarPanelView: View {
             case .running:
                 if running.indices.contains(row.iconIndex) { onOpenApp(running[row.iconIndex]) }
             case .pinned:
-                if let url = sliceStore.config.slots[row.iconIndex] { onLaunchPinned(url) }
+                if sliceStore.config.actions.indices.contains(row.iconIndex),
+                   let action = sliceStore.config.actions[row.iconIndex] {
+                    onRunPinned(action)
+                }
             }
         } label: {
             HStack(spacing: 10) {
