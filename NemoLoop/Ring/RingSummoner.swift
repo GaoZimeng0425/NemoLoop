@@ -15,8 +15,8 @@ final class RingSummoner {
     private let viewModel: RingViewModel
     private let appearanceStore: AppearanceStore
 
-    /// The action to run for the wedge that is selected when the current ring commits.
-    private var onSelect: ((Int) -> Void)?
+    /// The action to run for the selection that exists when the current ring commits.
+    private var onSelect: ((RingSelection) -> Void)?
 
     var isShowing: Bool { controller.isVisible }
 
@@ -35,8 +35,12 @@ final class RingSummoner {
     // MARK: - Summon flows
 
     func summonLauncher(input: RingInput = .pointer) {
-        summon(icons: store.icons, input: input) { [weak self] index in
-            if let action = self?.store.config.actions[index] {
+        summon(icons: store.icons, subicons: store.childIcons, input: input) { [weak self] selection in
+            guard let self, self.store.config.slots.indices.contains(selection.index) else { return }
+            let entry = self.store.config.slots[selection.index]
+            if let sub = selection.subIndex, entry.children.indices.contains(sub) {
+                Launcher.run(entry.children[sub])
+            } else if let action = entry.action {
                 Launcher.run(action)
             }
         }
@@ -45,21 +49,27 @@ final class RingSummoner {
     func summonRunningApps(input: RingInput = .pointer) {
         let apps = runningApps.snapshot(limit: Self.maxRunningAppWedges)
         guard !apps.isEmpty else { return }   // nothing to switch to → no ring
-        summon(icons: apps.map(\.icon), input: input) { index in
-            guard apps.indices.contains(index) else { return }
+        summon(icons: apps.map(\.icon), input: input) { selection in
+            guard apps.indices.contains(selection.index) else { return }
             // openApplication on the running instance restores minimized windows
             // (Dock-reopen semantics); bare activate() leaves them in the Dock.
-            Launcher.switchTo(app: apps[index].app)
+            Launcher.switchTo(app: apps[selection.index].app)
         }
     }
 
     /// Shared open path: guards against re-entry, records the commit action, shows the ring.
-    private func summon(icons: [NSImage?], input: RingInput, onSelect: @escaping (Int) -> Void) {
+    private func summon(icons: [NSImage?],
+                        subicons: [[NSImage?]] = [],
+                        input: RingInput,
+                        onSelect: @escaping (RingSelection) -> Void) {
         guard !controller.isVisible else { return } // ignore auto-repeat / held input
         self.onSelect = onSelect
         let center = ringCenter(for: input)
-        viewModel.begin(centerGlobal: center, wedgeCount: icons.count, input: input)
-        let content = RingView(icons: icons, viewModel: viewModel)
+        viewModel.begin(centerGlobal: center,
+                        wedgeCount: icons.count,
+                        childrenCounts: subicons.map(\.count),
+                        input: input)
+        let content = RingView(icons: icons, viewModel: viewModel, subicons: subicons)
         controller.show(content: content, centeredAtGlobalPoint: center,
                         appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()
@@ -83,10 +93,10 @@ final class RingSummoner {
     /// Runs the selected wedge's action and closes the ring (hotkey release / confirm button).
     func commit() {
         guard controller.isVisible else { return }
-        let index = viewModel.selectedIndex
+        let selection = viewModel.selection
         let action = onSelect
         teardown()
-        if let index { action?(index) }
+        if let selection { action?(selection) }
     }
 
     /// Closes the ring without selecting anything.

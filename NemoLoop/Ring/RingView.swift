@@ -3,8 +3,11 @@ import SwiftUI
 
 struct RingView: View {
     /// One entry per blade; `nil` renders an empty slot (a "+" glyph). `icons.count`
-    /// drives the blade count, so the ring is fully dynamic.
+    /// drives the blade count, so the ring is fully dynamic. `subicons` is parallel:
+    /// the dealt-out sub-action icons per blade, rendered only while that blade's
+    /// sub-wheel is open (`viewModel.openSubIndex`).
     let icons: [NSImage?]
+    let subicons: [[NSImage?]]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
     // Follows the hosting panel's effective appearance: RingWindowController forces
@@ -22,14 +25,12 @@ struct RingView: View {
     /// counterclockwise of blade 0 (overlap only above 11 blades).
     private var layout: BladeLayout { BladeLayout.forCount(bladeCount) }
 
-    init(icons: [NSImage?], viewModel: RingViewModel) {
-        self.init(icons: icons, viewModel: viewModel, preAppeared: false)
-    }
-
-    /// `preAppeared` renders the settled fan (deal-out already done) — the seam
-    /// offline render probes use, since `onAppear` never fires outside a window.
-    init(icons: [NSImage?], viewModel: RingViewModel, preAppeared: Bool) {
+    /// Single designated init. `preAppeared` renders the settled fan (deal-out
+    /// already done) — the seam offline render probes use, since `onAppear`
+    /// never fires outside a window.
+    init(icons: [NSImage?], viewModel: RingViewModel, subicons: [[NSImage?]] = [], preAppeared: Bool = false) {
         self.icons = icons
+        self.subicons = subicons
         self._viewModel = Bindable(viewModel)
         self._appeared = State(initialValue: preAppeared)
     }
@@ -54,10 +55,23 @@ struct RingView: View {
             Group {
                 ForEach(0..<bladeCount, id: \.self) { i in
                     bladeView(for: i)
+                        // The open wheel's parent blade recedes so the dealt-out
+                        // sub-cards read as a second, brighter tier.
+                        .opacity(viewModel.openSubIndex == i ? RingTheme.subOpenParentDimOpacity : 1)
                 }
             }
             .compositingGroup()
             .opacity(viewModel.isCancelling ? RingTheme.cancelDimOpacity : 1)
+            // Dealt-out sub-cards: a smaller tier of blades tiling the parent
+            // sector's outer band, above the parent fan. Their zIndex must beat
+            // every blade's — blade zIndexes (reversed, for the shingle) leak
+            // through the Group and would bury the subs under the fan otherwise.
+            if let open = viewModel.openSubIndex, subicons.indices.contains(open) {
+                ForEach(subicons[open].indices, id: \.self) { j in
+                    subBladeView(parent: open, sub: j)
+                        .zIndex(Double(2 * bladeCount + j))
+                }
+            }
         }
         .frame(width: frameRadius * 2, height: frameRadius * 2)
         .compositingGroup()
@@ -65,6 +79,8 @@ struct RingView: View {
         .position(center)
         .animation(RingTheme.highlight, value: viewModel.highlightedIndex)
         .animation(.easeOut(duration: 0.14), value: viewModel.isCancelling)
+        .animation(RingTheme.bladeAppear, value: viewModel.openSubIndex)
+        .animation(RingTheme.highlight, value: viewModel.hoveredSubIndex)
         .onAppear { appeared = true }
     }
 
@@ -141,7 +157,7 @@ struct RingView: View {
             // and carries the card's angle, so a card at 6 o'clock shows its logo
             // turned 180° with it, exactly like the reference. The lean on top of
             // that comes from the parent rotation, which moves both together.
-            iconView(for: i, size: iconSize(pitch: layout.pitch + overlapDeg))
+            iconView(icons[i], size: iconSize(pitch: layout.pitch + overlapDeg))
                 .rotationEffect(.degrees(layout.centerAngle(i)))
         }
         .frame(width: side, height: side)
@@ -183,6 +199,79 @@ struct RingView: View {
         .zIndex(Double(bladeCount - i))
     }
 
+    // MARK: - Sub-blades
+
+    /// One dealt-out sub-action card: a smaller blade tiling the parent sector's
+    /// full angular width across the raised sub band (`[subBandInner, subBandOuter]`),
+    /// sub 0 counterclockwise-most — the same mapping as `RingGeometry.subIndex`, so
+    /// hit regions match the render. Hovered sub pops outward and tints like a blade;
+    /// the cast shadow lifts each card off the dimmed parent.
+    @ViewBuilder
+    private func subBladeView(parent: Int, sub: Int) -> some View {
+        let childCount = subicons[parent].count
+        // Parent half-width in radians, split evenly across the children.
+        let parentHalf = layout.bladeWidth * .pi / 360
+        let subWidth = 2 * parentHalf / Double(childCount)
+        let theta = slotAngle(parent) - parentHalf + (Double(sub) + 0.5) * subWidth
+        let radial = (x: sin(theta), y: -cos(theta))
+        let midSub = (RingTheme.subBandInner + RingTheme.subBandOuter) / 2
+        let slot = (x: midSub * radial.x, y: midSub * radial.y)
+        let side = RingTheme.bladeViewSide * 0.6
+        let arcCenter = CGPoint(x: side / 2 - slot.x, y: side / 2 - slot.y)
+        let isHot = viewModel.hoveredSubIndex == sub
+        let icon = subicons[parent][sub]
+
+        let shape = CardBladeShape(innerRadius: RingTheme.subBandInner,
+                                   outerRadius: RingTheme.subBandOuter,
+                                   cornerRadius: RingTheme.subCornerRadius,
+                                   outerCornerRadius: RingTheme.subCornerRadius,
+                                   // Same −π/2 conversion as the parent blades — feed it
+                                   // θ raw and every card rotates +90° (the v4 bug).
+                                   centerAngle: theta - .pi / 2,
+                                   bladeWidth: subWidth + RingTheme.subBladeOverlapDegrees * .pi / 180,
+                                   arcCenter: arcCenter,
+                                   outerBow: 1)
+
+        ZStack {
+            shape.fill(palette.glassTint)
+            shape.fill(LinearGradient(colors: [palette.faceLightStart, palette.faceLightEnd],
+                                      startPoint: UnitPoint(x: 0.5 - radial.x * 0.5, y: 0.5 - radial.y * 0.5),
+                                      endPoint: UnitPoint(x: 0.5 + radial.x * 0.5, y: 0.5 + radial.y * 0.5)))
+            // Idle subs sit one tone BELOW the hot parent (the parent is always
+            // highlighted while its wheel is open), so the dealt-out tier reads as
+            // gray paper cards on a lit one instead of white-on-white. Hovering
+            // stays the white brighten — the sub is then the brightest card there,
+            // same language as blade highlight.
+            if isHot {
+                shape.fill(palette.highlightFill)
+            } else {
+                shape.fill(palette.faceLightEnd)
+            }
+            shape.stroke(palette.dividerColor, lineWidth: RingTheme.dividerWidth)
+            iconView(icon, size: subIconSize(width: subWidth))
+        }
+        .frame(width: side, height: side)
+        .shadow(color: RingTheme.bladeShadowColor, radius: RingTheme.bladeShadowRadius)
+        .shadow(color: palette.bladeCastColor, radius: 5, x: 0, y: 3)
+        // Deal-in bound to state (not a transition): renders deterministically at
+        // the final state offline, springs open in the live ring.
+        .scaleEffect(viewModel.openSubIndex == parent ? 1 : 0.6)
+        .opacity(viewModel.openSubIndex == parent ? 1 : 0)
+        .position(x: frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
+                  y: frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
+    }
+
+    /// Sub icons shrink to the (much narrower) sub-blade width at the sub band's
+    /// mid radius.
+    private func subIconSize(width subWidthRadians: Double) -> CGFloat {
+        let widthAtMid = 2 * midSubRadius * sin(subWidthRadians / 2)
+        return min(RingTheme.iconSize * 0.6, widthAtMid * 0.78)
+    }
+
+    private var midSubRadius: CGFloat {
+        (RingTheme.subBandInner + RingTheme.subBandOuter) / 2
+    }
+
     // MARK: - Icon
 
     /// Icon size shrinks with the slot width so dense fans (12+ blades, compressed
@@ -193,9 +282,9 @@ struct RingView: View {
     }
 
     @ViewBuilder
-    private func iconView(for i: Int, size: CGFloat) -> some View {
-        if let icon = icons[i] {
-            Image(nsImage: icon)
+    private func iconView(_ image: NSImage?, size: CGFloat) -> some View {
+        if let image {
+            Image(nsImage: image)
                 .resizable()
                 .frame(width: size, height: size)
         } else {

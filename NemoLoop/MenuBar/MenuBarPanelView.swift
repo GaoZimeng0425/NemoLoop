@@ -99,7 +99,7 @@ struct MenuBarPanelView: View {
             let entries = running.map { MenuBarListModel.AppEntry(id: $0.id, name: $0.name) }
             return MenuBarListModel.runningRows(entries, frontmostPID: frontmostPID)
         case .pinned:
-            return MenuBarListModel.pinnedRows(sliceStore.config.actions)
+            return MenuBarListModel.pinnedRows(sliceStore.config.slots)
         }
     }
 
@@ -144,8 +144,8 @@ struct MenuBarPanelView: View {
             case .running:
                 if running.indices.contains(row.iconIndex) { onOpenApp(running[row.iconIndex]) }
             case .pinned:
-                if sliceStore.config.actions.indices.contains(row.iconIndex),
-                   let action = sliceStore.config.actions[row.iconIndex] {
+                if sliceStore.config.slots.indices.contains(row.iconIndex),
+                   let action = sliceStore.config.slots[row.iconIndex].action {
                     onRunPinned(action)
                 }
             }

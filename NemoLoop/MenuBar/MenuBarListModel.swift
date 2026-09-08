@@ -35,10 +35,11 @@ enum MenuBarListModel {
     }
 
     /// Empty slots vanish; survivors keep slot order and remember their original
-    /// slot so icon lookups hit `SliceStore`'s cache.
-    static func pinnedRows(_ actions: [SlotAction?]) -> [Row] {
-        actions.enumerated().compactMap { slotIndex, action in
-            guard let action else { return nil }
+    /// slot so icon lookups hit `SliceStore`'s cache. Sub-actions are ring-only:
+    /// the panel lists the primary action per slot.
+    static func pinnedRows(_ slots: [SlotEntry]) -> [Row] {
+        slots.enumerated().compactMap { slotIndex, entry in
+            guard let action = entry.action else { return nil }
             return Row(id: action.identity,
                        name: action.displayName,
                        isFrontmost: false,
