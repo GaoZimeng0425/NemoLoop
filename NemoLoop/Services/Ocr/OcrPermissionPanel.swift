@@ -92,26 +92,12 @@ final class OcrPermissionCardView: NSView {
 
         let W = frame.width
 
-        // THE button — logo + name as one big unit. Clicking opens the
-        // System Settings screen-recording page.
-        let button = NSButton(title: "NemoLoop",
-                              image: NSImage(named: "MenubarLogo") ?? NSImage(),
-                              target: nil, action: nil)
-        button.image?.isTemplate = true
-        button.image?.size = NSSize(width: 24, height: 24)
-        button.contentTintColor = .white
-        button.font = .systemFont(ofSize: 15, weight: .semibold)
-        button.isBordered = false
-        button.bezelStyle = .texturedRounded
-        button.alignment = .center        // icon+title centered in the full-width button
-        let bh: CGFloat = 44
-        button.frame = NSRect(x: 12, y: frame.height - 12 - bh, width: W - 24, height: bh)
-        button.wantsLayer = true
-        button.layer?.backgroundColor = CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
-        button.layer?.cornerRadius = 8
-        button.target = self
-        button.action = #selector(openSettingsClicked)
-        addSubview(button)
+        // THE button — logo + name as one big unit, full card width. Its
+        // interaction is DRAG-TO-AUTHORIZE: dragging it offers NemoLoop.app's
+        // file URL to whatever permission drop zone accepts it.
+        let grant = OcrGrantButtonView(frame: NSRect(x: 12, y: frame.height - 12 - 44,
+                                                     width: W - 24, height: 44))
+        addSubview(grant)
 
         // Hint, centered below with equal spacing.
         let hint = NSTextField(labelWithString: "Click to allow screen recording")
@@ -121,10 +107,67 @@ final class OcrPermissionCardView: NSView {
         hint.frame = NSRect(x: (W - hintW) / 2, y: 12, width: hintW + 4, height: 14)
         addSubview(hint)
     }
+}
 
-    @objc private func openSettingsClicked() {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
-            NSWorkspace.shared.open(url)
+/// The big logo+name button — pure style + drag source: dragging it offers
+/// NemoLoop.app's file URL to permission drop zones. Content is manually
+/// centered (borderless NSButton alignment is unreliable).
+final class OcrGrantButtonView: NSView {
+    private let logo = NSImageView(frame: .zero)
+    private let name = NSTextField(labelWithString: "NemoLoop")
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer?.backgroundColor = CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
+        layer?.cornerRadius = 8
+
+        logo.image = NSImage(named: "MenubarLogo")
+        logo.image?.isTemplate = true          // tint white — the raw glyph is dark
+        logo.contentTintColor = .white
+        logo.frame.size = NSSize(width: 24, height: 24)
+        addSubview(logo)
+
+        name.font = .systemFont(ofSize: 15, weight: .semibold)
+        addSubview(name)
+        layoutContent()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func layout() {
+        super.layout()
+        layoutContent()
+    }
+
+    private func layoutContent() {
+        let nameW = ceil(name.attributedStringValue.size().width)
+        let groupW = 24 + 8 + nameW
+        let startX = (bounds.width - groupW) / 2
+        logo.frame = NSRect(x: startX, y: (bounds.height - 24) / 2, width: 24, height: 24)
+        name.frame = NSRect(x: startX + 32, y: (bounds.height - 20) / 2, width: nameW + 4, height: 20)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window else { return }
+        let item = NSDraggingItem(pasteboardWriter: Bundle.main.bundleURL as NSURL)
+        if let snapshot = bitmapImageRepForCachingDisplay(in: bounds) {
+            cacheDisplay(in: bounds, to: snapshot)
+            if let cg = snapshot.cgImage {
+                item.setDraggingFrame(bounds, contents: NSImage(cgImage: cg, size: bounds.size))
+            }
         }
+        beginDraggingSession(with: [item], event: event, source: AppFileDragSource.shared)
+    }
+}
+
+final class AppFileDragSource: NSObject, NSDraggingSource {
+    static let shared = AppFileDragSource()
+
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor draggingContext: NSDraggingContext) -> NSDragOperation {
+        .copy
     }
 }
