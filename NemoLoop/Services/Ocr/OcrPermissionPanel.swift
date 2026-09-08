@@ -103,9 +103,9 @@ final class OcrPermissionCardView: NSView {
         button.font = .systemFont(ofSize: 15, weight: .semibold)
         button.isBordered = false
         button.bezelStyle = .texturedRounded
-        let bw = ceil(button.intrinsicContentSize.width) + 32
+        button.alignment = .center        // icon+title centered in the full-width button
         let bh: CGFloat = 44
-        button.frame = NSRect(x: (W - bw) / 2, y: frame.height - 12 - bh, width: bw, height: bh)
+        button.frame = NSRect(x: 12, y: frame.height - 12 - bh, width: W - 24, height: bh)
         button.wantsLayer = true
         button.layer?.backgroundColor = CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.10)
         button.layer?.cornerRadius = 8
