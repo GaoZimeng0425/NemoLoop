@@ -50,9 +50,8 @@ xcodebuild archive \
   ONLY_ACTIVE_ARCH=NO \
   MARKETING_VERSION="$VERSION" \
   CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
-  CODE_SIGN_IDENTITY="-" \
-  CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGN_IDENTITY="NemoLoopDev" \
+  DEVELOPMENT_TEAM="" \
   ENABLE_HARDENED_RUNTIME=NO \
   | tail -1
 
@@ -62,8 +61,8 @@ xcodebuild -exportArchive \
   -exportPath "$BUILD_DIR/export" \
   -exportOptionsPlist ExportOptions.plist
 
-echo "==> Ad-hoc signing..."
-codesign --force --deep --sign - "$BUILD_DIR/export/$APP_NAME.app"
+echo "==> Signing with NemoLoopDev (stable identity — keeps TCC grants across builds)..."
+codesign --force --deep --sign "NemoLoopDev" "$BUILD_DIR/export/$APP_NAME.app"
 
 echo "==> Creating DMG..."
 DMG_STAGING="$BUILD_DIR/dmg_staging"
