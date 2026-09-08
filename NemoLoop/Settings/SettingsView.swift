@@ -35,6 +35,8 @@ struct SettingsView: View {
     @Bindable var chrome: SettingsChrome
     @Bindable var appearance: AppearanceStore
     @State private var tab: SettingsTab = .ring
+    /// Which slot groups have their sub-action rows unfolded.
+    @State private var expandedSlots: Set<Int> = []
 
     init(store: SliceStore, chrome: SettingsChrome, appearance: AppearanceStore) {
         self._store = Bindable(store)
@@ -42,39 +44,45 @@ struct SettingsView: View {
         self._appearance = Bindable(appearance)
     }
 
-    private let wedgeNames = ["Top", "Upper-right", "Lower-right", "Bottom", "Lower-left", "Upper-left"]
-
     var body: some View {
         HStack(spacing: 0) {
             if chrome.sidebarVisible {
-                sidebarCard
+                // Flush left sidebar, the way LuminareSidebar is meant to sit
+                // (see its own preview: sidebar | Divider | pane) — no floating
+                // card, no shadow, no inset.
+                sidebar
                     .transition(.move(edge: .leading).combined(with: .opacity))
+                Divider()
             }
-            LuminarePane(tab.title) {
+            LuminarePane {
                 paneContent
+            } header: {
+                // Leading-aligned tab title: the pane's plain-Text header gets
+                // centered by the button wrapper, which reads as a toolbar title.
+                Text(tab.title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .luminarePaneLayout(.stacked)
         }
         .animation(.smooth(duration: 0.25), value: chrome.sidebarVisible)
         .luminareTint(overridingWith: .accentColor)
+        // Rise into the titlebar strip: the pane header (tab name) then occupies
+        // the full-size-content titlebar as the single top bar, instead of
+        // stacking under the system title.
+        .ignoresSafeArea(.container, edges: .top)
     }
 
-    /// A floating, rounded sidebar card (inset with padding + shadow) rather than a flush edge sidebar.
-    private var sidebarCard: some View {
+    /// Edge-to-edge sidebar column: full window height, square to the window
+    /// edges; the hairline Divider in `body` separates it from the pane. The
+    /// extra top margin keeps the first tab clear of the traffic lights and the
+    /// titlebar toggle, which now share the strip the sidebar rises into.
+    private var sidebar: some View {
         LuminareSidebar {
             LuminareSidebarSection(selection: $tab, items: SettingsTab.allCases)
-              .padding(.vertical, 12)
+                .padding(.vertical, 12)
         }
+        .environment(\.luminareContentMarginsTop, 16)
         .frame(width: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-        )
-        .padding(.leading, 12)
-        .padding(.trailing, 4)
-        .padding(.bottom, 12)
-        .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 4)
     }
 
     // MARK: - Panes
@@ -129,64 +137,136 @@ struct SettingsView: View {
     @ViewBuilder
     private func wedgeRow(_ i: Int) -> some View {
         let entry = store.config.slots[i]
-        LuminareCompose(alignment: .center) {
-            HStack(spacing: 6) {
-                Menu {
-                    Button("Choose App…") { chooseApp(for: i) }
-                    Button("Choose Folder…") { chooseFolder(for: i) }
-                    Menu("System Action") {
-                        ForEach(SystemAction.allCases) { system in
-                            Button(system.displayName) {
-                                store.setAction(.system(system), at: i)
-                            }
-                        }
-                    }
-                    Divider()
-                    Section("Sub-actions (\(entry.children.count)/\(SlotEntry.maxChildren))") {
-                        if entry.children.count < SlotEntry.maxChildren {
-                            Menu("Add Sub-action…") {
-                                Button("App…") { chooseChildApp(for: i) }
-                                Button("Folder…") { chooseChildFolder(for: i) }
-                                Menu("System") {
-                                    ForEach(SystemAction.allCases) { system in
-                                        Button(system.displayName) {
-                                            store.addChild(.system(system), at: i)
-                                        }
-                                    }
+        // One collapsible group: the slot row, and when expanded its sub-slot
+        // rows beneath (indented), ending with the add row.
+        VStack(spacing: 0) {
+            LuminareCompose(alignment: .center) {
+                HStack(spacing: 6) {
+                    Menu {
+                        Button("Choose App…") { chooseApp(for: i) }
+                        Button("Choose Folder…") { chooseFolder(for: i) }
+                        Menu("System Action") {
+                            ForEach(SystemAction.allCases) { system in
+                                Button(system.displayName) {
+                                    store.setAction(.system(system), at: i)
                                 }
                             }
                         }
-                        ForEach(entry.children.indices, id: \.self) { j in
-                            Button("Remove “\(entry.children[j].displayName)”") {
+                    } label: {
+                        Text("Configure")
+                    }
+                    .buttonStyle(.luminareCompact)
+                    Button("Clear") {
+                        withAnimation(.smooth(duration: 0.2)) {
+                            store.setAction(nil, at: i)
+                            expandedSlots.remove(i)
+                        }
+                    }
+                    .buttonStyle(.luminareCompact)
+                    .disabled(entry.action == nil && entry.children.isEmpty)
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    // Only configured slots unfold — sub-slots hang off a
+                    // configured slot, so an empty slot has nothing to expand.
+                    // (Legacy children without an action stay manageable.)
+                    if entry.action != nil || !entry.children.isEmpty {
+                        Button {
+                            withAnimation(.smooth(duration: 0.2)) {
+                                if expandedSlots.contains(i) {
+                                    expandedSlots.remove(i)
+                                } else {
+                                    expandedSlots.insert(i)
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .rotationEffect(.degrees(expandedSlots.contains(i) ? 90 : 0))
+                                .foregroundStyle(.secondary)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Group {
+                        if let icon = store.icon(at: i) {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .interpolation(.high)
+                        } else {
+                            Image(systemName: "app.dashed")
+                                .resizable()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(width: 22, height: 22)
+                    Text(label(for: i))
+                }
+            }
+
+            if expandedSlots.contains(i) {
+                subRows(i, entry: entry)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+    }
+
+    /// The sub-slot controls of one slot, indented under it: a right-aligned
+    /// strip of rounded icon buttons — one per sub-action (click removes, hover
+    /// shows the minus badge) — with the add button at the end. Adding stays
+    /// gated on a configured slot; an empty expanded slot explains why.
+    @ViewBuilder
+    private func subRows(_ i: Int, entry: SlotEntry) -> some View {
+        VStack(alignment: .trailing, spacing: 6) {
+            if !entry.children.isEmpty
+                || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
+                HStack(spacing: 8) {
+                    ForEach(entry.children.indices, id: \.self) { j in
+                        SubSlotChip(icon: SliceStore.icon(for: entry.children[j]),
+                                    name: entry.children[j].displayName) {
+                            withAnimation(.smooth(duration: 0.2)) {
                                 store.removeChild(at: i, offset: j)
                             }
                         }
                     }
-                } label: {
-                    Text("Configure…")
-                }
-                .fixedSize()
-                Button("Clear") { store.setAction(nil, at: i) }
-                    .buttonStyle(.luminareCompact)
-                    .disabled(entry.action == nil && entry.children.isEmpty)
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Group {
-                    if let icon = store.icon(at: i) {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .interpolation(.high)
-                    } else {
-                        Image(systemName: "app.dashed")
-                            .resizable()
-                            .foregroundStyle(.secondary)
+
+                    if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
+                        Menu {
+                            Button("App…") { chooseChildApp(for: i) }
+                            Button("Folder…") { chooseChildFolder(for: i) }
+                            Menu("System") {
+                                ForEach(SystemAction.allCases) { system in
+                                    Button(system.displayName) {
+                                        store.addChild(.system(system), at: i)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 36, height: 36)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        // The chip card wraps the MENU, not the label — a
+                        // borderless menu restyles its label and drops fills.
+                        .frame(width: 36, height: 36)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(.quinary.opacity(0.6)))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+                        .help("Add Sub-action")
                     }
                 }
-                .frame(width: 22, height: 22)
-                Text(label(for: i))
+                .padding(.vertical, 4)
             }
+
         }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.trailing, 12)
+        .padding(.bottom, 4)
     }
 
     @ViewBuilder private func placeholder(_ text: String) -> some View {
@@ -219,10 +299,15 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
+    /// Slots are numbered by ring order — blade 0 at 12 o'clock running
+    /// clockwise — not by compass position: the fan's wrap gap means half the
+    /// old "Upper-left"-style names pointed at nonexistent geometry.
+    private func slotName(_ i: Int) -> String { "Slot \(i + 1)" }
+
     private func label(for i: Int) -> String {
         let entry = store.config.slots[i]
-        let base = entry.action.map { "\(wedgeNames[i]): \($0.displayName)" }
-            ?? "\(wedgeNames[i]): (empty)"
+        let base = entry.action.map { "\(slotName(i)): \($0.displayName)" }
+            ?? "\(slotName(i)): (empty)"
         return entry.children.isEmpty ? base : "\(base) · \(entry.children.count) subs"
     }
 
@@ -287,5 +372,46 @@ extension RingAppearance {
         case .light: "sun.max"
         case .dark: "moon"
         }
+    }
+}
+
+/// The 36pt rounded card frame shared by the sub-slot chip buttons.
+private struct SubSlotChipFrame: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: 8).fill(.quinary.opacity(0.6)))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+/// One sub-slot chip: the action's icon; hovering reveals the minus badge and
+/// clicking removes it (settings only configures — the ring runs these).
+private struct SubSlotChip: View {
+    let icon: NSImage
+    let name: String
+    let onRemove: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: onRemove) {
+            Image(nsImage: icon)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 22, height: 22)
+                .frame(width: 36, height: 36)
+                .modifier(SubSlotChipFrame())
+                .overlay(alignment: .topTrailing) {
+                    if hovering {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.red)
+                            .offset(x: 4, y: -4)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("Remove \(name)")
     }
 }

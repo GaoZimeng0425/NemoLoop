@@ -121,18 +121,18 @@ enum RingTheme {
     static let bladeCastOffset = CGSize(width: 0, height: 5)
 
     // Cascading sub-wheel: dwell this long on a blade that has sub-actions and
-    // they deal out across the parent sector's outer band. Moving to another
-    // blade (or into the cancel state) sweeps them away. The band starts a
-    // little inside the parent's mid radius and pokes a little past its rim —
-    // a raised second tier, so white sub cards never sit white-on-white on a
-    // hot (highlighted) parent.
+    // they deal out as a second ring outside the fan — slim 10° cards on their
+    // own fixed pitch (sub j sits j pitches clockwise of its parent). The band
+    // tucks 8pt UNDER the blades so the first ring presses on the second and
+    // hides its seams (blades zIndex above subs). While the wheel is open the
+    // cancel boundary moves out past the subs, or hovering a sub would read as
+    // outer-escape.
     static let subDwellDuration: Double = 0.25
-    static let subBandInner: CGFloat = 88
-    static let subBandOuter: CGFloat = 140
-    static let subBladeOverlapDegrees: Double = 2
-    static let subCornerRadius: CGFloat = 6
+    static let subPitchDegrees: Double = 10
+    static let subBandInner: CGFloat = 122
+    static let subBandOuter: CGFloat = subBandInner + (outerRadius - innerRadius)
+    static var subCancelRadius: CGFloat { subBandOuter + 16 }
     static let subPopOffset: CGFloat = 4
-    static let subOpenParentDimOpacity: Double = 0.5
 
     // Motion
     // Pop-in is driven by RingView's local `appeared` @State on .onAppear, not a

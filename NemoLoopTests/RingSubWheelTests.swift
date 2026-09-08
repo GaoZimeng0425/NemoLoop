@@ -11,39 +11,39 @@ struct RingSubWheelGeometryTests {
     let layout = BladeLayout.forCount(6)
     let inner = RingTheme.subBandInner
     let outer = RingTheme.subBandOuter
+    let midSub = (RingTheme.subBandInner + RingTheme.subBandOuter) / 2
 
     private func subPoint(parent: Int, sub: Int, childCount: Int, radius: CGFloat,
                           angleOffset: Double = 0) -> CGPoint {
-        let half = layout.bladeWidth / 2
-        let subWidth = 2 * half / Double(childCount)
-        let angle = layout.centerAngle(parent) - half + (Double(sub) + 0.5) * subWidth + angleOffset
+        // Fixed 10° pitch: sub j is centered j pitches clockwise of the parent.
+        let angle = layout.centerAngle(parent) + Double(sub) * RingTheme.subPitchDegrees + angleOffset
         let t = angle * Double.pi / 180
         return CGPoint(x: center.x + radius * sin(t), y: center.y + radius * cos(t))
     }
 
     @Test func subCentersHitTheirOwnSub() {
-        // parent 0 (center 0°), 3 children → sub centers at −10°, 0°, +10°.
+        // parent 0 (center 0°), 3 children → sub centers at 0°, 10°, 20°.
         for sub in 0..<3 {
-            let p = subPoint(parent: 0, sub: sub, childCount: 3, radius: 110)
+            let p = subPoint(parent: 0, sub: sub, childCount: 3, radius: midSub)
             #expect(RingGeometry.subIndex(parent: 0,
                                           angle: RingGeometry.angle(from: center, to: p),
-                                          distance: 110,
+                                          distance: midSub,
                                           layout: layout, childCount: 3,
                                           innerRadius: inner, outerRadius: outer) == sub)
         }
     }
 
     @Test func subSeamsSplitEvenly() {
-        // Boundary between sub 0 and sub 1 of a 2-child wheel: −7.5° for parent 0.
-        let inside = subPoint(parent: 0, sub: 1, childCount: 2, radius: 110, angleOffset: -0.1)
+        // Boundary between sub 0 and sub 1 of a 2-child wheel: +5° for parent 0.
+        let inside = subPoint(parent: 0, sub: 1, childCount: 2, radius: midSub, angleOffset: -0.1)
         #expect(RingGeometry.subIndex(parent: 0,
                                       angle: RingGeometry.angle(from: center, to: inside),
-                                      distance: 110, layout: layout, childCount: 2,
+                                      distance: midSub, layout: layout, childCount: 2,
                                       innerRadius: inner, outerRadius: outer) == 1)
     }
 
     @Test func radialBounds() {
-        let p = subPoint(parent: 0, sub: 0, childCount: 3, radius: 110)
+        let p = subPoint(parent: 0, sub: 0, childCount: 3, radius: midSub)
         let angle = RingGeometry.angle(from: center, to: p)
         // Inside the inner radius (the parent's band) and past the outer edge: no sub.
         #expect(RingGeometry.subIndex(parent: 0, angle: angle, distance: inner - 1,
@@ -54,24 +54,25 @@ struct RingSubWheelGeometryTests {
                                       innerRadius: inner, outerRadius: outer) == nil)
     }
 
-    @Test func outsideTheParentSector() {
-        // Parent 0 spans −15°…+15°; 30° away (parent 1's center) is no sub of parent 0.
-        #expect(RingGeometry.subIndex(parent: 0, angle: 30, distance: 110,
+    @Test func beyondTheDealtSlots() {
+        // 3 subs cover −5°…25°; 40° is past the last dealt slot.
+        #expect(RingGeometry.subIndex(parent: 0, angle: 40, distance: midSub,
                                       layout: layout, childCount: 3,
                                       innerRadius: inner, outerRadius: outer) == nil)
     }
 
     @Test func lastParentWrapsCleanly() {
-        // Parent 5 centers at 150° — deltas past 180° must measure from 150°, not wrap.
-        let p = subPoint(parent: 5, sub: 2, childCount: 4, radius: 110)
+        // Parent 5 centers at 150°; its sub 2 lives at 170° — the signed delta
+        // must measure from 150°, not wrap.
+        let p = subPoint(parent: 5, sub: 2, childCount: 4, radius: midSub)
         #expect(RingGeometry.subIndex(parent: 5,
                                       angle: RingGeometry.angle(from: center, to: p),
-                                      distance: 110, layout: layout, childCount: 4,
+                                      distance: midSub, layout: layout, childCount: 4,
                                       innerRadius: inner, outerRadius: outer) == 2)
     }
 
     @Test func noChildrenMeansNoSub() {
-        #expect(RingGeometry.subIndex(parent: 0, angle: 0, distance: 110,
+        #expect(RingGeometry.subIndex(parent: 0, angle: 0, distance: midSub,
                                       layout: layout, childCount: 0,
                                       innerRadius: inner, outerRadius: outer) == nil)
     }
@@ -99,9 +100,7 @@ struct RingSubWheelViewModelTests {
     }
 
     private func subAngle(parent: Int, sub: Int, childCount: Int) -> Double {
-        let half = layout.bladeWidth / 2
-        let subWidth = 2 * half / Double(childCount)
-        return layout.centerAngle(parent) - half + (Double(sub) + 0.5) * subWidth
+        layout.centerAngle(parent) + Double(sub) * RingTheme.subPitchDegrees
     }
 
     @Test func dwellOpensTheWheel() {
@@ -142,9 +141,9 @@ struct RingSubWheelViewModelTests {
         vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start)
         vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start.addingTimeInterval(0.3))
         #expect(vm.openSubIndex == 0)
-        // Sub 2 of 3: +10° from the parent's center, at the sub band's mid radius.
+        // Sub 2 of 3: 20° from up, at the sub band's mid radius.
         let angle = subAngle(parent: 0, sub: 2, childCount: 3)
-        vm.updatePointer(at: point(atDegrees: angle, radius: 110),
+        vm.updatePointer(at: point(atDegrees: angle, radius: 175),
                          now: start.addingTimeInterval(0.4))
         #expect(vm.highlightedIndex == 0)   // parent stays highlighted
         #expect(vm.hoveredSubIndex == 2)
@@ -180,11 +179,27 @@ struct RingSubWheelViewModelTests {
         vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start)
         vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start.addingTimeInterval(0.3))
         #expect(vm.openSubIndex == 0)
-        vm.updatePointer(at: point(atDegrees: 0, radius: RingTheme.cancelRadius + 40),
+        vm.updatePointer(at: point(atDegrees: 0, radius: RingTheme.subCancelRadius + 40),
                          now: start.addingTimeInterval(0.4))
         #expect(vm.isCancelling)
         #expect(vm.openSubIndex == nil)
         #expect(vm.selection == nil)
+    }
+
+    @Test func subBandNeverReadsAsCancelWhileOpen() {
+        // The sub ring lives OUTSIDE the closed-state cancel radius — while the
+        // wheel is open, hovering a sub there must neither cancel nor close.
+        let (vm, start) = makeViewModel(children: [3, 0, 0, 0, 0, 0])
+        defer { vm.end() }
+        vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start)
+        vm.updatePointer(at: point(atDegrees: 0, radius: 70), now: start.addingTimeInterval(0.3))
+        #expect(vm.openSubIndex == 0)
+        // Past the old cancelRadius (146), inside the sub band.
+        vm.updatePointer(at: point(atDegrees: 8, radius: 170),
+                         now: start.addingTimeInterval(0.4))
+        #expect(!vm.isCancelling)
+        #expect(vm.openSubIndex == 0)
+        #expect(vm.hoveredSubIndex != nil)
     }
 
     @Test func beginResetsTheWheel() {

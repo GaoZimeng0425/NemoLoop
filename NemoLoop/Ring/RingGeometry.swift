@@ -86,10 +86,11 @@ enum RingGeometry {
             .truncatingRemainder(dividingBy: 360)
     }
 
-    /// Maps the pointer onto a sub-action of `parent`'s dealt-out sector.
-    /// Sub-blades tile the parent's full angular width evenly (sub 0 is the
-    /// counterclockwise-most) and occupy the outer band `[innerRadius, outerRadius]`.
-    /// Returns nil outside the sector's angular span or radial band.
+    /// Maps the pointer onto a sub-action of `parent`'s dealt-out ring.
+    /// Subs sit on their own fixed pitch (`RingTheme.subPitchDegrees`) — sub j
+    /// is centered `j * pitch` clockwise of the parent's center angle, seams on
+    /// the pitch grid — and occupy the outer band `[innerRadius, outerRadius]`.
+    /// Returns nil outside the dealt slots' span or radial band.
     static func subIndex(
         parent: Int,
         angle: Double,
@@ -102,13 +103,12 @@ enum RingGeometry {
         guard childCount > 0 else { return nil }
         guard distance >= innerRadius, distance <= outerRadius else { return nil }
         // Signed offset from the parent's center angle, wrapping at ±180 so the
-        // last blades (near 165°) still measure their own sector, not the wrap.
+        // last blades (near 165°) still measure their own grid, not the wrap.
         let center = layout.centerAngle(parent)
         let delta = ((angle - center + 180).truncatingRemainder(dividingBy: 360) + 360)
             .truncatingRemainder(dividingBy: 360) - 180
-        let half = layout.bladeWidth / 2
-        guard abs(delta) <= half else { return nil }
-        let rel = (delta + half) / (half * 2)
-        return min(childCount - 1, Int(rel * Double(childCount)))
+        let slot = Int((delta / RingTheme.subPitchDegrees).rounded())
+        guard slot >= 0, slot < childCount else { return nil }
+        return slot
     }
 }

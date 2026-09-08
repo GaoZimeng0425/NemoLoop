@@ -21,6 +21,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             SettingsView(store: store, chrome: self.chrome, appearance: appearance)
         }
         window.title = "Settings"
+        // The pane header (current tab name) IS the title — the system title text
+        // would draw a second, centered bar above it (LuminareWindow doesn't hide
+        // it; its modal windows do).
+        window.titleVisibility = .hidden
         window.setContentSize(NSSize(width: 680, height: 480))
         window.delegate = self
         window.center()

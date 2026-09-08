@@ -118,12 +118,30 @@ struct SliceStoreMigrationTests {
 
     @Test func childMutationsRespectTheCap() {
         let store = SliceStore(defaults: freshDefaults("cap"))
+        store.setAction(.system(.lockScreen), at: 0)
         for i in 0..<6 {
             store.addChild(.system(SystemAction.allCases[i % SystemAction.allCases.count]), at: 0)
         }
         #expect(store.config.slots[0].children.count == SlotEntry.maxChildren)
         store.removeChild(at: 0, offset: 1)
         #expect(store.config.slots[0].children.count == SlotEntry.maxChildren - 1)
+    }
+
+    @Test func childrenRequireAConfiguredParentAction() {
+        // Sub-slots hang off a configured slot: on an empty slot addChild is a
+        // no-op, and clearing the parent's action keeps existing children (they
+        // just can't grow).
+        let store = SliceStore(defaults: freshDefaults("require-parent"))
+        store.addChild(.system(.sleep), at: 2)
+        #expect(store.config.slots[2].children.isEmpty)
+
+        store.setAction(.app(URL(filePath: "/Applications/Safari.app")), at: 2)
+        store.addChild(.system(.sleep), at: 2)
+        #expect(store.config.slots[2].children == [.system(.sleep)])
+
+        store.setAction(nil, at: 2)
+        store.addChild(.system(.lockScreen), at: 2)
+        #expect(store.config.slots[2].children == [.system(.sleep)])
     }
 
     @Test func noDataGivesEmptyConfig() {

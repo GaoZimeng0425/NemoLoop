@@ -46,5 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             })
         controller.install()
         self.menuBarController = controller
+
+        // Verification affordance: `NemoLoop --settings` opens Settings on launch —
+        // the status item can be force-hidden when the menu bar is full, leaving
+        // no clickable way in.
+        if CommandLine.arguments.contains("--settings") {
+            settingsWindowController.show(store: sliceStore, appearance: appearanceStore)
+        }
     }
 }

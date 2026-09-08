@@ -115,7 +115,10 @@ final class RingViewModel {
         let dx = point.x - centerGlobal.x
         let dy = point.y - centerGlobal.y
         let distance = hypot(dx, dy)
-        if distance > RingTheme.cancelRadius {
+        // With a wheel open the outer world is the sub ring, so the escape
+        // boundary moves past it — otherwise reaching a sub would cancel.
+        let cancelBoundary = openSubIndex != nil ? RingTheme.subCancelRadius : RingTheme.cancelRadius
+        if distance > cancelBoundary {
             isCancelling = true
             highlightedIndex = nil
             closeSubs()
@@ -123,8 +126,8 @@ final class RingViewModel {
         }
         isCancelling = false
 
-        // Sub hover wins inside the open wheel's outer band; the parent stays
-        // the highlighted blade while its wheel is open.
+        // Sub hover wins inside the open wheel's band; the parent stays the
+        // highlighted blade while its wheel is open.
         hoveredSubIndex = nil
         if let open = openSubIndex, childrenCounts.indices.contains(open) {
             hoveredSubIndex = RingGeometry.subIndex(
@@ -133,7 +136,9 @@ final class RingViewModel {
                 distance: distance,
                 layout: layout,
                 childCount: childrenCounts[open],
-                innerRadius: RingTheme.subBandInner,
+                // The band's inner edge is tucked UNDER the blades — pointer
+                // there still rides the parent, so sub hover starts at the rim.
+                innerRadius: RingTheme.outerRadius,
                 outerRadius: RingTheme.subBandOuter
             )
         }
@@ -144,8 +149,17 @@ final class RingViewModel {
             deadZoneRadius: deadZoneRadius,
             outerRadius: RingTheme.outerRadius
         )
-        // Leave for another blade (or the gap) and the wheel sweeps away.
-        if let open = openSubIndex, hoveredSubIndex == nil, highlightedIndex != open {
+        // While a sub is under the pointer the parent stays the highlighted
+        // blade: the sub ring now lives OUTSIDE the blade band, where the wedge
+        // mapping has nothing — leaving it nil would dim the parent and make
+        // `selection` (which keys off the highlighted blade) drop the sub.
+        if hoveredSubIndex != nil, let open = openSubIndex {
+            highlightedIndex = open
+        }
+        // Landing on a DIFFERENT blade sweeps the wheel away; crossing the outer
+        // bands (sub ring / grace) on the way to a sub — or back — keeps it open.
+        if let open = openSubIndex, hoveredSubIndex == nil,
+           let landed = highlightedIndex, landed != open {
             closeSubs()
         }
         updateDwell(for: highlightedIndex, at: moment)
