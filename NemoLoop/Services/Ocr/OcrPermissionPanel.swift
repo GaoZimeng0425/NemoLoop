@@ -150,6 +150,13 @@ final class OcrGrantButtonView: NSView {
         name.frame = NSRect(x: startX + 32, y: (bounds.height - 20) / 2, width: nameW + 4, height: 20)
     }
 
+    override var mouseDownCanMoveWindow: Bool { false }   // the panel must not move
+
+    /// All points hit THIS view — the logo/name stay render-only, so the
+    /// window's move-by-background never steals the press (it used to drag
+    /// the whole panel along with the drag session).
+    override func hitTest(_ point: NSPoint) -> NSView? { self }
+
     override func mouseDown(with event: NSEvent) {
         guard let window else { return }
         let item = NSDraggingItem(pasteboardWriter: Bundle.main.bundleURL as NSURL)
