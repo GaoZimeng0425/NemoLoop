@@ -55,7 +55,7 @@ final class SliceStore {
     func addChild(_ child: SlotAction, at index: Int) {
         guard config.slots.indices.contains(index),
               config.slots[index].action != nil,
-              config.slots[index].children.count < SlotEntry.maxChildren else { return }
+              config.slots[index].children.count < SlotEntry.childLimit(for: config.slots[index].action) else { return }
         config.slots[index].children.append(child)
     }
 
@@ -77,6 +77,10 @@ final class SliceStore {
             return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
         case .system(let system):
             return system.symbolImage
+        case .plugin, .pluginOp:
+            // No registry yet — a later task resolves real plugin icons; a
+            // blank plate keeps the icon cache shape intact in the meantime.
+            return NSImage(size: NSSize(width: 32, height: 32))
         }
     }
 

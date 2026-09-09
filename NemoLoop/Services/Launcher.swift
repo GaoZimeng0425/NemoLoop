@@ -20,6 +20,10 @@ enum Launcher {
             NSWorkspace.shared.open(url)
         case .system(let system):
             system.perform()
+        case .plugin, .pluginOp:
+            // Plugin execution arrives with the registry in a later task; no
+            // UI can produce these actions yet.
+            break
         }
     }
 
