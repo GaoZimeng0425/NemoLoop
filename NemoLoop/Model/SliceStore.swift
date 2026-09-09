@@ -70,17 +70,21 @@ final class SliceStore {
     }
 
     /// The cached icon for one action: file icons for apps and folders, a
-    /// symbol-drawn plate for system actions.
+    /// symbol-drawn plate for system actions and plugin references.
     static func icon(for action: SlotAction) -> NSImage {
         switch action {
         case .app(let url), .folder(let url):
             return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
         case .system(let system):
-            return system.symbolImage
-        case .plugin, .pluginOp:
-            // No registry yet — a later task resolves real plugin icons; a
-            // blank plate keeps the icon cache shape intact in the meantime.
-            return NSImage(size: NSSize(width: 32, height: 32))
+            return SymbolPlate.image(symbolName: system.symbolName, label: system.displayName)
+        case .plugin(let id):
+            let plugin = PluginRegistry.shared.plugin(id: id)
+            return SymbolPlate.image(symbolName: plugin?.symbolName ?? "puzzlepiece",
+                                     label: plugin?.displayName ?? id)
+        case .pluginOp:
+            let symbol = ActionResolver.symbolName(for: action) ?? "circle.dashed"
+            return SymbolPlate.image(symbolName: symbol,
+                                     label: ActionResolver.name(for: action))
         }
     }
 
@@ -92,25 +96,5 @@ final class SliceStore {
     private func persist() {
         guard let data = try? JSONEncoder().encode(config) else { return }
         defaults.set(data, forKey: Self.entriesKey)
-    }
-}
-
-extension SystemAction {
-    /// Monochrome symbol drawn at app-icon size, tinted systemGray so it reads
-    /// on both the near-white card stock and the dark charcoal one.
-    var symbolImage: NSImage {
-        let size = NSSize(width: 32, height: 32)
-        let img = NSImage(size: size)
-        img.lockFocus()
-        defer { img.unlockFocus() }
-        guard let base = NSImage(systemSymbolName: symbolName, accessibilityDescription: displayName) else {
-            return img
-        }
-        var configured = base.withSymbolConfiguration(.init(pointSize: 22, weight: .medium))
-        configured = configured?.withSymbolConfiguration(.init(paletteColors: [.systemGray]))
-        configured?.draw(in: NSRect(origin: .zero, size: size),
-                         from: .zero, operation: .sourceOver, fraction: 1,
-                         respectFlipped: true, hints: [.interpolation: NSImageInterpolation.high.rawValue])
-        return img
     }
 }

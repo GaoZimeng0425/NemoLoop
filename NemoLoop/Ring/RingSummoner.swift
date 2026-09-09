@@ -41,7 +41,7 @@ final class RingSummoner {
             if let sub = selection.subIndex, entry.children.indices.contains(sub) {
                 Launcher.run(entry.children[sub])
             } else if let action = entry.action {
-                Launcher.run(action)
+                Launcher.run(action, children: entry.children)
             }
         }
     }

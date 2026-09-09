@@ -10,8 +10,7 @@ import Observation
 @Observable
 final class PluginRegistry {
     static let shared = PluginRegistry(plugins: [
-        // Built-in plugins get registered here one by one from Task 3 on;
-        // empty list for now.
+        SystemPlugin(),
     ])
 
     private static let enabledKeyPrefix = "nemoloop.plugin."
