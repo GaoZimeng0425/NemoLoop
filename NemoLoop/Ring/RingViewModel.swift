@@ -44,6 +44,12 @@ final class RingViewModel {
     @ObservationIgnored private var dwellDeadline: Date?
     /// Injectable clock so the dwell rules are testable.
     @ObservationIgnored var now: () -> Date = Date.init
+    /// Settings-inspector mode: no global input sampling (`sample()`, and with
+    /// it `NSEvent.mouseLocation` / stick polling) — the preview must not steal
+    /// the user's real input. Input arrives exclusively from explicit
+    /// `updatePointer` calls (SwiftUI gestures + carousel). The real ring leaves
+    /// this false.
+    var isSettingsPreview = false
 
     var selection: RingSelection? {
         guard let index = highlightedIndex else { return nil }
@@ -87,6 +93,9 @@ final class RingViewModel {
     }
 
     func sample() {
+        // Preview mode ignores the real input entirely — only explicit
+        // `updatePointer` calls may drive the state.
+        guard !isSettingsPreview else { return }
         switch input {
         case .pointer:
             updatePointer(at: NSEvent.mouseLocation, now: now())
