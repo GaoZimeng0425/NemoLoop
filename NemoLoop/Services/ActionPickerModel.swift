@@ -30,6 +30,46 @@ struct PickerSection: Equatable {
     let items: [PickerItem]
 }
 
+/// Keyboard cursor over the picker's flattened, section-ordered items.
+/// Pure value type so the arrow-key semantics (wrapping, empty-list
+/// tolerance) are unit-testable without a UI. `index == nil` means nothing
+/// highlighted (fresh open); the view rebinds the cursor to the CURRENT
+/// `sections(query)` flat list on every keystroke, so there are no
+/// hidden/filtered-out states to skip here.
+struct PickerCursor: Equatable {
+    let items: [PickerItem]
+    var index: Int? = nil
+
+    /// Move by +1 (↓) or -1 (↑), wrapping around both ends. An empty list is
+    /// inert (returns self). From `nil`, the first ↓ lands on the top row and
+    /// the first ↑ on the bottom row — consistent wrap semantics either way.
+    func moved(_ direction: Int) -> PickerCursor {
+        guard !items.isEmpty else { return self }
+        let start = index ?? (direction >= 0 ? -1 : items.count)
+        // Double-mod keeps negative intermediate values in range.
+        let next = ((start + direction) % items.count + items.count) % items.count
+        var moved = self
+        moved.index = next
+        return moved
+    }
+
+    /// The row under the highlight, nil when nothing is highlighted or the
+    /// index points past the list (e.g. list shrank before a rebind).
+    var current: PickerItem? {
+        index.flatMap { items.indices.contains($0) ? items[$0] : nil }
+    }
+
+    /// Rebind to a freshly built list (query changed or the scan landed):
+    /// keep the index while it still fits, clamp to the last row when the
+    /// list shrank, and drop to nil when it emptied — the highlight never
+    /// dangles past the end.
+    func rebound(to newItems: [PickerItem]) -> PickerCursor {
+        guard !newItems.isEmpty else { return PickerCursor(items: newItems, index: nil) }
+        guard let index else { return PickerCursor(items: newItems, index: nil) }
+        return PickerCursor(items: newItems, index: min(index, newItems.count - 1))
+    }
+}
+
 /// Loop's three-tier match scoring: prefix (0) beats contains (1) beats
 /// subsequence (2); nil means no match. Empty query matches everything at 0.
 enum PickerSearch {

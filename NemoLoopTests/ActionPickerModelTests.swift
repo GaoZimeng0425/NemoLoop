@@ -100,6 +100,74 @@ struct ActionPickerModelTests {
                 "Plugins not listed are disconnected — connect them in the Plugins tab.")
     }
 
+    // MARK: - PickerCursor (picker keyboard navigation, pinned independently of the view)
+
+    /// Minimal rows for cursor tests — only title matters for movement.
+    private func cursorItems(_ titles: [String]) -> [PickerItem] {
+        titles.enumerated().map { i, title in
+            PickerItem(id: "cursor:\(i):\(title)", kind: .browseFolder,
+                       title: title, subtitle: nil, symbolName: nil)
+        }
+    }
+
+    @Test func cursorWrapsDownPastEnd() {
+        let cursor = PickerCursor(items: cursorItems(["A", "B", "C"]), index: 2).moved(1)
+        #expect(cursor.index == 0)
+        #expect(cursor.current?.title == "A")
+    }
+
+    @Test func cursorWrapsUpPastStart() {
+        let cursor = PickerCursor(items: cursorItems(["A", "B", "C"]), index: 0).moved(-1)
+        #expect(cursor.index == 2)
+        #expect(cursor.current?.title == "C")
+    }
+
+    @Test func cursorOnEmptyListIsInert() {
+        let cursor = PickerCursor(items: [])
+        #expect(cursor.current == nil)
+        // Any move on an empty list must stay nil, not trap or invent an index
+        // (e.g. "no results" mid-typing).
+        #expect(cursor.moved(1).index == nil)
+        #expect(cursor.moved(-1).current == nil)
+    }
+
+    @Test func cursorNilIndexSelectsFirstOnDownLastOnUp() {
+        let items = cursorItems(["A", "B", "C"])
+        // Fresh open (nil): first ↓ highlights the top row, first ↑ wraps to
+        // the bottom — the same wrap semantics as an explicit move.
+        #expect(PickerCursor(items: items).moved(1).index == 0)
+        #expect(PickerCursor(items: items).moved(-1).index == 2)
+    }
+
+    @Test func cursorCurrentNilWhenIndexOutOfRange() {
+        // Possible transiently if the list shrank before a rebound — reading
+        // `current` must yield nil, not crash.
+        let stale = PickerCursor(items: cursorItems(["A", "B", "C"]), index: 9)
+        #expect(stale.current == nil)
+    }
+
+    @Test func cursorReboundKeepsIndexWhileInRange() {
+        let rebound = PickerCursor(items: cursorItems(["A", "B", "C"]), index: 1)
+            .rebound(to: cursorItems(["A", "B", "C", "D"]))
+        #expect(rebound.index == 1)
+        #expect(rebound.current?.title == "B")
+    }
+
+    @Test func cursorReboundClampsWhenListShrinks() {
+        let rebound = PickerCursor(items: cursorItems(["A", "B", "C", "D"]), index: 3)
+            .rebound(to: cursorItems(["A", "B"]))
+        // Clamp to the last row instead of dropping the highlight mid-typing.
+        #expect(rebound.index == 1)
+        #expect(rebound.current?.title == "B")
+    }
+
+    @Test func cursorReboundToEmptyClearsIndex() {
+        let rebound = PickerCursor(items: cursorItems(["A", "B"]), index: 1)
+            .rebound(to: [])
+        #expect(rebound.index == nil)
+        #expect(rebound.current == nil)
+    }
+
     // MARK: - PickerSearch tiers (Loop's scoring, pinned independently of the model)
 
     @Test func scoreTiersPrefixContainsSubsequence() {

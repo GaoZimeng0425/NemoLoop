@@ -238,6 +238,10 @@ struct SettingsView: View {
                         withAnimation(.smooth(duration: 0.2)) {
                             store.setAction(nil, at: i)
                             expandedSlots.remove(i)
+                            // The blade this selection pointed at is now empty —
+                            // drop the list↔ring link instead of leaving the
+                            // highlight parked on a blank blade.
+                            selectedSlot = nil
                         }
                     }
                     .buttonStyle(.luminareCompact)

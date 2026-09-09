@@ -21,6 +21,12 @@ struct ActionPickerPopover: View {
     /// nil = not scanned yet (spinner state); filled once per process from
     /// `AppScanner.cachedScan()`.
     @State private var apps: [AppEntry]?
+    /// Keyboard cursor over the CURRENT flattened rows. Rebound on every
+    /// query keystroke and when the scan lands, so the highlight never
+    /// points at a row that filtering removed.
+    @State private var cursor = PickerCursor(items: [])
+    /// Spec: 搜索（自动聚焦）— the search field claims focus on open.
+    @FocusState private var searchFocused: Bool
 
     init(context: PickerContext, store: SliceStore, slot: Int,
          onDismiss: @escaping () -> Void) {
@@ -34,39 +40,77 @@ struct ActionPickerPopover: View {
         ActionPickerModel(apps: apps ?? [], registry: .shared)
     }
 
+    /// The rows in section order, flattened — what the cursor walks and what
+    /// the ScrollViewReader ids refer to.
+    private var flatItems: [PickerItem] {
+        model.sections(context: context, query: query ?? "").flatMap(\.items)
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             LuminareTextField("Search", text: $query)
                 .padding(.horizontal, 10)
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if apps == nil {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 20)
-                    }
-                    // id: \.title (not implicit Identifiable): section titles
-                    // are unique by construction (Apps/Plugins/Folders).
-                    ForEach(model.sections(context: context, query: query ?? ""), id: \.title) { section in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(section.title.uppercased())
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            ForEach(section.items) { item in
-                                PickerRow(item: item) { choose(item) }
+                .focused($searchFocused)
+                // ↵ (spec: 键盘导航 ↑↓↵) picks the highlighted row.
+                .onSubmit(submitCursor)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        if apps == nil {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
+                        }
+                        // id: \.title (not implicit Identifiable): section titles
+                        // are unique by construction (Apps/Plugins/Folders).
+                        ForEach(model.sections(context: context, query: query ?? ""), id: \.title) { section in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(section.title.uppercased())
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ForEach(section.items) { item in
+                                    PickerRow(item: item,
+                                              isHighlighted: cursor.current?.id == item.id) {
+                                        choose(item)
+                                    }
+                                    // Stable row id so proxy.scrollTo can find it.
+                                    .id(item.id)
+                                }
                             }
                         }
+                        Text(model.connectedPluginFootnote)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
-                    Text(model.connectedPluginFootnote)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 10)
                 }
-                .padding(.horizontal, 10)
+                // Track the item under the cursor (not the bare index) so the
+                // row also scrolls into view when a keystroke reflows the list
+                // under a stable index.
+                .onChange(of: cursor.current?.id) { _, id in
+                    guard let id else { return }
+                    proxy.scrollTo(id, anchor: .center)
+                }
             }
         }
         .padding(.vertical, 10)
         .frame(width: 300, height: 360)
+        // Spec: 键盘导航 ↑↓↵ — the focused single-line search field doesn't
+        // consume vertical arrows, so AppKit delivers them here as move
+        // commands; ↓ walks down, ↑ walks up (the cursor wraps). Esc stays
+        // native popover dismissal — deliberately not intercepted.
+        .onMoveCommand { direction in
+            switch direction {
+            case .down: cursor = cursor.rebound(to: flatItems).moved(1)
+            case .up: cursor = cursor.rebound(to: flatItems).moved(-1)
+            default: break
+            }
+        }
         .onAppear {
+            // Autofocus (spec: 搜索自动聚焦): the popover becomes key on
+            // present, so claiming focus in onAppear reliably lands on the
+            // field — no extra keystroke needed to start searching.
+            searchFocused = true
             // Task (not a direct call): lets this body pass finish so the
             // spinner renders before the synchronous scan blocks the main
             // actor; the cache makes every later open instant.
@@ -74,9 +118,22 @@ struct ActionPickerPopover: View {
                 Task { @MainActor in apps = AppScanner.cachedScan() }
             }
         }
+        // Anything that reshapes the list must rebind the cursor so its index
+        // stays valid against the CURRENT rows.
+        .onChange(of: query) { _, _ in cursor = cursor.rebound(to: flatItems) }
+        .onChange(of: apps) { _, _ in cursor = cursor.rebound(to: flatItems) }
     }
 
     // MARK: - Choosing
+
+    /// ↵ picks the highlighted row; with nothing highlighted yet (fresh open,
+    /// or the user typed and hit return without arrowing) fall through to the
+    /// top hit — the Loop-picker behavior of "return means best match".
+    private func submitCursor() {
+        if let item = cursor.current ?? flatItems.first {
+            choose(item)
+        }
+    }
 
     private func choose(_ item: PickerItem) {
         switch item.kind {
@@ -144,6 +201,10 @@ struct ActionPickerPopover: View {
 /// semantics: plugin config changes flow into the whole ring.
 private struct PickerRow: View {
     let item: PickerItem
+    /// Keyboard-cursor highlight (accent wash). Mouse users are unaffected:
+    /// they click a row and it chooses directly — no hover state to fight
+    /// the cursor.
+    let isHighlighted: Bool
     let onChoose: () -> Void
 
     var body: some View {
@@ -176,5 +237,11 @@ private struct PickerRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Visible keyboard highlight: accent fill rounded like the row cards;
+        // clear when the row isn't under the cursor.
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHighlighted ? Color.accentColor.opacity(0.25) : .clear)
+        )
     }
 }
