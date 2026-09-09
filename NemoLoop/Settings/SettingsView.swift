@@ -66,13 +66,19 @@ struct SettingsView: View {
     @Bindable var store: SliceStore
     @Bindable var chrome: SettingsChrome
     @Bindable var appearance: AppearanceStore
-    @State private var tab: SettingsTab = .ring
+    /// The tab the window opens on. Static so the window controller can size
+    /// the initial frame for it (Ring opens with the inspector column).
+    static let initialTab: SettingsTab = .ring
+    @State private var tab: SettingsTab = SettingsView.initialTab
     /// Which slot groups have their sub-action rows unfolded.
     @State private var expandedSlots: Set<Int> = []
     /// The slot the picker popover is configuring, if open. One optional for
     /// both main rows and sub "+" buttons so `popover(item:)` presents a
     /// single popover app-wide.
     @State private var pickerSlot: PickerTarget?
+    /// The selected wedge — shared by the slot list (row highlight) and the
+    /// inspector's mini-ring (blade highlight), so selection syncs both ways.
+    @State private var selectedSlot: Int?
 
     init(store: SliceStore, chrome: SettingsChrome, appearance: AppearanceStore) {
         self._store = Bindable(store)
@@ -99,13 +105,36 @@ struct SettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .luminarePaneLayout(.stacked)
+            // Third column, Ring tab only: the live mini-ring inspector.
+            // Gated on the CHROME flag (kept in lockstep with `tab` by the
+            // onChange/onAppear below) rather than `tab` itself, so the
+            // column's insertion/removal lands in the same transaction as the
+            // `inspectorVisible` change the .animation below keys on — gating
+            // on `tab` would pop the column instantly while the window still
+            // animates.
+            if chrome.inspectorVisible {
+                Divider()
+                RingTabInspector(store: store,
+                                 selectedSlot: $selectedSlot,
+                                 // Empty-blade click configures directly: the
+                                 // SAME picker popover the list rows use.
+                                 configureSlot: { index in pickerSlot = .main(index) })
+                    .frame(width: 280)
+                    .padding(.vertical, 12)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
         .animation(.smooth(duration: 0.25), value: chrome.sidebarVisible)
+        .animation(.smooth(duration: 0.25), value: chrome.inspectorVisible)
         .luminareTint(overridingWith: .accentColor)
         // Rise into the titlebar strip: the pane header (tab name) then occupies
         // the full-size-content titlebar as the single top bar, instead of
         // stacking under the system title.
         .ignoresSafeArea(.container, edges: .top)
+        // The inspector column exists exactly while the Ring tab is showing;
+        // the chrome flag relays that to the window controller's resize.
+        .onChange(of: tab) { chrome.inspectorVisible = ($0 == .ring) }
+        .onAppear { chrome.inspectorVisible = (tab == .ring) }
     }
 
     /// Edge-to-edge sidebar column: full window height, square to the window
@@ -259,6 +288,17 @@ struct SettingsView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        // Selection highlight (list side of the list↔ring link): a faint
+        // accent wash plus a stroke, the same rounded-8 card language as the
+        // rest of the pane.
+        .background(selectedSlot == i ? Color.accentColor.opacity(0.08) : .clear)
+        .overlay(RoundedRectangle(cornerRadius: 8)
+            .strokeBorder(selectedSlot == i ? Color.accentColor.opacity(0.4) : .clear))
+        // Tap anywhere on the row EXCEPT its buttons (Choose/Clear/chevron
+        // keep their own actions) selects the slot; the row's label area is
+        // otherwise inert. Buttons win over this gesture, so they still work.
+        .contentShape(Rectangle())
+        .onTapGesture { selectedSlot = i }
     }
 
     /// The slot's action chip — click to (re)configure it in the picker

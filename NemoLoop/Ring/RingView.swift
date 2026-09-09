@@ -42,7 +42,9 @@ struct RingView: View {
 
     /// Canvas radius: the blades, or the dealt-out sub ring when that extends
     /// farther (it sits outside the fan), plus pop and shadow headroom.
-    private var frameRadius: CGFloat {
+    /// Static — the settings inspector scales its embedded copy of this canvas
+    /// down to fit its column and needs the exact number as the scale's base.
+    static var frameRadius: CGFloat {
         max(RingTheme.outerRadius, RingTheme.subBandOuter)
             + RingTheme.subPopOffset + RingTheme.shadowPad
     }
@@ -80,7 +82,7 @@ struct RingView: View {
                 }
             }
         }
-        .frame(width: frameRadius * 2, height: frameRadius * 2)
+        .frame(width: Self.frameRadius * 2, height: Self.frameRadius * 2)
         .compositingGroup()
         .shadow(color: RingTheme.shadowColor, radius: RingTheme.shadowRadius)
         .position(center)
@@ -203,9 +205,9 @@ struct RingView: View {
         // so the fan unfolds clockwise from 12 o'clock card by card.
         .scaleEffect(appeared ? 1 : RingTheme.bladeAppearScale)
         .opacity(appeared ? 1 : 0)
-        .position(x: frameRadius + slot.x + (isHot ? RingTheme.popOffset * radial.x : 0)
+        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.popOffset * radial.x : 0)
                     - (appeared ? 0 : RingTheme.bladeAppearInset * radial.x),
-                  y: frameRadius + slot.y + (isHot ? RingTheme.popOffset * radial.y : 0)
+                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.popOffset * radial.y : 0)
                     - (appeared ? 0 : RingTheme.bladeAppearInset * radial.y))
         .animation(RingTheme.bladeAppear.delay(Double(i) * RingTheme.bladeStagger), value: appeared)
         // Previous card over next: descending zIndex with index, so blade i shingles
@@ -278,8 +280,8 @@ struct RingView: View {
         // the final state offline, springs open in the live ring.
         .scaleEffect(viewModel.openSubIndex == parent ? 1 : 0.6)
         .opacity(viewModel.openSubIndex == parent ? 1 : 0)
-        .position(x: frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
-                  y: frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
+        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
+                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
     }
 
     private var midSubRadius: CGFloat {

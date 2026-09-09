@@ -7,6 +7,16 @@ import SwiftUI
 @Observable
 final class SettingsChrome {
     var sidebarVisible = true
+
+    /// Ring-tab inspector column. Toggled by the tab switch, observed by the
+    /// window controller to animate the frame wider/narrower.
+    var inspectorVisible = false {
+        didSet { inspectorDidChange?(inspectorVisible) }
+    }
+
+    /// Notified on every assignment — including same-value ones (Swift's
+    /// didSet fires regardless); the window controller filters no-op resizes.
+    var inspectorDidChange: ((Bool) -> Void)?
 }
 
 /// The sidebar collapse/expand button hosted in the window titlebar (leading accessory).

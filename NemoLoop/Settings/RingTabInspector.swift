@@ -35,8 +35,21 @@ struct RingTabInspector: View {
     /// Current carousel blade (advanced once per idle second).
     @State private var carouselIndex = 0
 
-    /// Ring frame. The blade fan (outer radius 130) reads at near-full scale.
+    /// Side of the interactive preview square. The ring content itself is
+    /// `canvasSide` big (428pt at current theme constants: the dealt
+    /// sub-wheel's outer band 196 + pop 4 + shadow pad 14, doubled) — far too
+    /// wide for a 280pt inspector column, and centering it raw in a 240pt
+    /// square (the T4 state) left blades ~10pt and dealt sub-wheels ~76pt of
+    /// render-live but GESTURE-DEAD overflow. Fix: a uniform fit-scale shrinks
+    /// the canvas to exactly `side`, and `toRingSpace` multiplies input back
+    /// up by `canvasSide / side` at ingestion — one conversion seam, hit math
+    /// stays exact in ring units, and nothing interactive sits outside the
+    /// frame (hit-test radius 212 · scale ≈ 118.7 < 120 = half side).
     private let side: CGFloat = 240
+
+    /// RingView's own canvas side — the scale's base, taken from RingView so
+    /// the two can never drift apart.
+    private static var canvasSide: CGFloat { RingView.frameRadius * 2 }
 
     init(store: SliceStore, selectedSlot: Binding<Int?>, configureSlot: @escaping (Int) -> Void) {
         self._store = Bindable(store)
@@ -56,6 +69,13 @@ struct RingTabInspector: View {
                  subicons: snap.subicons, dimmed: snap.dimmed, preAppeared: true)
             .environment(\.ringCenter, centerLocal)
             .frame(width: side, height: side)
+            // Uniform fit-scale: shrinks the oversized canvas (centered at
+            // `centerLocal` by RingView's own .position) to exactly fill the
+            // square. Default .center anchor = the frame midpoint = the ring's
+            // center, so the visual center holds. Rendering-only: the gestures
+            // below attach OUTSIDE it, so they still see unscaled frame-local
+            // points, which `toRingSpace` scales back up.
+            .scaleEffect(side / Self.canvasSide)
             // The whole square is interactive — cards, gaps and hole included —
             // so hover/click never drop out between blades.
             .contentShape(Rectangle())
@@ -133,12 +153,15 @@ struct RingTabInspector: View {
     /// 50 ms (fine enough that the 0.25 s dwell reads exactly like the live ring):
     /// - hovering → re-send the last hover point (dwell completes under a still
     ///   pointer; see `lastHoverPoint`);
+    /// - a selected slot (row tap or blade click — the list↔ring link) → hold
+    ///   the pointer on that blade, so it stays highlighted (and, with
+    ///   children, its sub-wheel stays dealt — a selection IS a dwell here);
     /// - idle for 3 s → carousel: advance to the next blade every 1 s and
     ///   re-point at its center each tick, so the REAL dwell state machine
     ///   highlights it and — on a blade with children — deals the sub-wheel
     ///   mid-slot, Loop-style;
-    /// - cooldown (pointer just left) → send nothing; the highlight freezes
-    ///   until the carousel resumes.
+    /// - cooldown (pointer just left, nothing selected) → send nothing; the
+    ///   highlight freezes until the carousel resumes.
     @MainActor
     private func runPreviewLoop() async {
         var lastAdvance = Date.distantPast
@@ -146,22 +169,28 @@ struct RingTabInspector: View {
             let moment = Date()
             if isHovering, let point = lastHoverPoint {
                 viewModel.updatePointer(at: toRingSpace(point))
+            } else if let slot = selectedSlot {
+                let snap = snapshot
+                if snap.icons.indices.contains(slot) {
+                    viewModel.updatePointer(at: bladePoint(for: slot, snapshot: snap))
+                }
             } else if moment.timeIntervalSince(lastInteractionAt ?? .distantPast) >= 3 {
                 let snap = snapshot   // fresh every tick — config edits track live
                 if moment.timeIntervalSince(lastAdvance) >= 1 {
                     carouselIndex = (carouselIndex + 1) % max(snap.icons.count, 1)
                     lastAdvance = moment
                 }
-                viewModel.updatePointer(at: carouselPoint(for: carouselIndex, snapshot: snap))
+                viewModel.updatePointer(at: bladePoint(for: carouselIndex, snapshot: snap))
             }
             try? await Task.sleep(for: .milliseconds(50))
         }
     }
 
-    /// The synthetic pointer for carousel blade `i`: its slot-center angle at
-    /// 0.7 × the outer radius — just inside the blade band. Built directly in
-    /// the vm's y-up convention (up = +Y), so no flip is needed.
-    private func carouselPoint(for index: Int, snapshot snap: RingSnapshot) -> CGPoint {
+    /// The synthetic pointer for blade `i` (selection lock and carousel alike):
+    /// its slot-center angle at 0.7 × the outer radius — just inside the blade
+    /// band. Built directly in the vm's y-up convention (up = +Y) at ring-unit
+    /// scale, so it needs neither the flip nor the fit-scale factor.
+    private func bladePoint(for index: Int, snapshot snap: RingSnapshot) -> CGPoint {
         let layout = BladeLayout.forCount(snap.icons.count)
         let angle = layout.centerAngle(index) * .pi / 180
         let radius = RingTheme.outerRadius * 0.7
@@ -169,8 +198,15 @@ struct RingTabInspector: View {
                        y: centerLocal.y + cos(angle) * radius)
     }
 
-    /// Mirrors a local (y-down) point into the ring's y-up math space.
+    /// Mirrors a local (y-down) point into the ring's y-up math space AND
+    /// undoes the fit-scale (frame points live at `side` scale, the vm works
+    /// in canvas/ring units — e.g. a hover on a blade's logo lands at ring
+    /// radius 0.7 · 130, not 0.7 · 130 · scale). The vm only ever measures
+    /// point − center, so the center-holding formulation keeps the shared
+    /// center valid; at scale 1 it reduces to the plain y-flip.
     private func toRingSpace(_ p: CGPoint) -> CGPoint {
-        CGPoint(x: p.x, y: side - p.y)
+        let k = Self.canvasSide / side
+        return CGPoint(x: centerLocal.x + (p.x - centerLocal.x) * k,
+                       y: centerLocal.y + (centerLocal.y - p.y) * k)
     }
 }
