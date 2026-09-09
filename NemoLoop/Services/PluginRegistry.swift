@@ -12,6 +12,7 @@ final class PluginRegistry {
     static let shared = PluginRegistry(plugins: [
         SystemPlugin(),
         AppearancePlugin(),
+        ScreenshotPlugin(),
     ])
 
     private static let enabledKeyPrefix = "nemoloop.plugin."
