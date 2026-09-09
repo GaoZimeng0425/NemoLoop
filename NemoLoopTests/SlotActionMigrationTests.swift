@@ -18,11 +18,13 @@ struct SlotActionMigrationTests {
         let encoded = String(data: try JSONEncoder().encode(SlotAction.plugin("media")), encoding: .utf8)
         #expect(encoded == #"{"plugin":{"_0":"media"}}"#)
 
-        let opEncoded = String(data: try JSONEncoder()
-            .encode(SlotAction.pluginOp(pluginID: "system", opID: "ocr")), encoding: .utf8)
-        // This JSON writer emits object keys sorted ("opID" before "pluginID"),
-        // which is exactly what the synthesized encoder emitted too.
-        #expect(opEncoded == #"{"pluginOp":{"opID":"ocr","pluginID":"system"}}"#)
+        // Two nested keys here, and JSONEncoder's key order is unspecified
+        // (it rerolls per process launch — the old synthesized encoder used
+        // the same writer, so readers never depended on order). Assert the
+        // decoded shape instead of raw bytes to keep this deterministic.
+        let opObject = try JSONSerialization.jsonObject(with: try JSONEncoder()
+            .encode(SlotAction.pluginOp(pluginID: "system", opID: "ocr"))) as? [String: [String: String]]
+        #expect(opObject?["pluginOp"] == ["pluginID": "system", "opID": "ocr"])
     }
 
     @Test func legacySystemJSONStillDecodes() throws {
