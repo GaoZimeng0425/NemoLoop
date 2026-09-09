@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 
 /// Sidebar tabs for the settings window (Loop-style left-right layout).
 enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
-    case general, ring, appearance, about
+    case general, ring, plugins, appearance, about
 
     var id: Self { self }
 
@@ -15,6 +15,7 @@ enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
         switch self {
         case .general: "General"
         case .ring: "Ring"
+        case .plugins: "Plugins"
         case .appearance: "Appearance"
         case .about: "About"
         }
@@ -24,6 +25,7 @@ enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
         switch self {
         case .general: Image(systemName: "gearshape")
         case .ring: Image(systemName: "circle.grid.cross")
+        case .plugins: Image(systemName: "puzzlepiece.extension")
         case .appearance: Image(systemName: "paintpalette")
         case .about: Image(systemName: "info.circle")
         }
@@ -90,6 +92,7 @@ struct SettingsView: View {
     @ViewBuilder private var paneContent: some View {
         switch tab {
         case .ring: ringSettings
+        case .plugins: PluginsTab(registry: PluginRegistry.shared, store: store)
         case .general: placeholder("General settings coming soon.")
         case .appearance: appearanceSettings
         case .about: aboutSettings
@@ -145,13 +148,18 @@ struct SettingsView: View {
                     Menu {
                         Button("Choose App…") { chooseApp(for: i) }
                         Button("Choose Folder…") { chooseFolder(for: i) }
-                        // System ops come from the registry (the System
-                        // plugin), not a direct SystemAction list.
-                        Menu("System") {
-                            if let system = PluginRegistry.shared.plugin(id: "system") {
-                                ForEach(system.operations, id: \.id) { op in
-                                    Button(op.displayName) {
-                                        store.setAction(.pluginOp(pluginID: system.id, opID: op.id), at: i)
+                        // Connected plugins only: a disconnected plugin has
+                        // nothing runnable to offer the ring.
+                        Menu("Plugins") {
+                            ForEach(connectedPlugins, id: \.id) { plugin in
+                                Button("Whole: \(plugin.displayName)") {
+                                    store.attachWholePlugin(plugin.id, at: i)
+                                }
+                                Menu(plugin.displayName) {
+                                    ForEach(plugin.operations, id: \.id) { op in
+                                        Button(op.displayName) {
+                                            store.setAction(.pluginOp(pluginID: plugin.id, opID: op.id), at: i)
+                                        }
                                     }
                                 }
                             }
@@ -239,13 +247,16 @@ struct SettingsView: View {
                         Menu {
                             Button("App…") { chooseChildApp(for: i) }
                             Button("Folder…") { chooseChildFolder(for: i) }
-                            // Same registry-driven source as the main slot
-                            // menu above — plugin ops, added as children.
-                            Menu("System") {
-                                if let system = PluginRegistry.shared.plugin(id: "system") {
-                                    ForEach(system.operations, id: \.id) { op in
-                                        Button(op.displayName) {
-                                            store.addChild(.pluginOp(pluginID: system.id, opID: op.id), at: i)
+                            // Same connected-plugins source as the main slot
+                            // menu above, ops only — a sub-slot mounts single
+                            // operations, never a whole plugin.
+                            Menu("Plugins") {
+                                ForEach(connectedPlugins, id: \.id) { plugin in
+                                    Menu(plugin.displayName) {
+                                        ForEach(plugin.operations, id: \.id) { op in
+                                            Button(op.displayName) {
+                                                store.addChild(.pluginOp(pluginID: plugin.id, opID: op.id), at: i)
+                                            }
                                         }
                                     }
                                 }
@@ -307,6 +318,12 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
+    /// Connected plugins for both slot menus. Read during body evaluation so
+    /// toggling a plugin in the Plugins tab re-renders the menus in place.
+    private var connectedPlugins: [any NemoPlugin] {
+        PluginRegistry.shared.plugins.filter { PluginRegistry.shared.isEnabled($0.id) }
+    }
+
     /// Slots are numbered by ring order — blade 0 at 12 o'clock running
     /// clockwise — not by compass position: the fan's wrap gap means half the
     /// old "Upper-left"-style names pointed at nonexistent geometry.
@@ -314,7 +331,9 @@ struct SettingsView: View {
 
     private func label(for i: Int) -> String {
         let entry = store.config.slots[i]
-        let base = entry.action.map { "\(slotName(i)): \($0.displayName)" }
+        // Resolve through the registry so plugin actions read their display
+        // names ("Lock Screen"), never raw ids ("system/lockScreen").
+        let base = entry.action.map { "\(slotName(i)): \(ActionResolver.name(for: $0))" }
             ?? "\(slotName(i)): (empty)"
         return entry.children.isEmpty ? base : "\(base) · \(entry.children.count) subs"
     }

@@ -36,12 +36,14 @@ enum MenuBarListModel {
 
     /// Empty slots vanish; survivors keep slot order and remember their original
     /// slot so icon lookups hit `SliceStore`'s cache. Sub-actions are ring-only:
-    /// the panel lists the primary action per slot.
+    /// the panel lists the primary action per slot. MainActor because names
+    /// resolve through the registry (ActionResolver).
+    @MainActor
     static func pinnedRows(_ slots: [SlotEntry]) -> [Row] {
         slots.enumerated().compactMap { slotIndex, entry in
             guard let action = entry.action else { return nil }
             return Row(id: action.identity,
-                       name: action.displayName,
+                       name: ActionResolver.name(for: action),
                        isFrontmost: false,
                        iconIndex: slotIndex)
         }

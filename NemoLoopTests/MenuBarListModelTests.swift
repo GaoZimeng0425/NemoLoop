@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import NemoLoop
 
+// @MainActor because pinnedRows resolves plugin names through the registry
+// (ActionResolver → PluginRegistry.shared), which is MainActor-isolated.
+@MainActor
 struct MenuBarListModelTests {
     // MARK: - Running section
 
@@ -52,13 +55,15 @@ struct MenuBarListModelTests {
     }
 
     @Test func pinnedFoldersAndPluginOpsNameAndId() {
-        // Since .system was dropped, system actions are System plugin ops:
-        // placeholder displayName and registry-shaped identity.
+        // Since .system was dropped, system actions are System plugin ops.
+        // Names resolve through the shared registry (the System plugin is
+        // registered there), so the row reads "Lock Screen", not the
+        // raw-id fallback "system/lockScreen"; ids stay registry-shaped.
         let rows = MenuBarListModel.pinnedRows([
             SlotEntry(action: .folder(URL(fileURLWithPath: "/Users/x/Downloads"))),
             SlotEntry(action: .pluginOp(pluginID: "system", opID: "lockScreen")),
         ])
-        #expect(rows.map(\.name) == ["Downloads", "system/lockScreen"])
+        #expect(rows.map(\.name) == ["Downloads", "Lock Screen"])
         #expect(rows.map(\.id) == ["/Users/x/Downloads", "pluginOp:system:lockScreen"])
         #expect(rows.allSatisfy { !$0.isFrontmost })
     }

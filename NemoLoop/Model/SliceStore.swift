@@ -27,9 +27,15 @@ final class SliceStore {
     private(set) var icons: [NSImage?] = []
     /// Sub-action icons per slot, parallel to `icons` — feeds the dealt-out sub-wheel.
     private(set) var childIcons: [[NSImage?]] = []
+    /// Test-support: the defaults suite name this store was built over, so
+    /// tests can reopen the same on-disk suite in a second store and verify
+    /// persistence. `UserDefaults` can't be asked for its suite name back,
+    /// hence the init parameter. nil on the standard-defaults production path.
+    private(set) var testingSuiteName: String?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, testingSuiteName: String? = nil) {
         self.defaults = defaults
+        self.testingSuiteName = testingSuiteName
         if let data = defaults.data(forKey: Self.entriesKey),
            let decoded = try? JSONDecoder().decode(SliceConfig.self, from: data) {
             self.config = decoded
@@ -48,6 +54,25 @@ final class SliceStore {
     func setAction(_ action: SlotAction?, at index: Int) {
         guard config.slots.indices.contains(index) else { return }
         config.slots[index].action = action
+        // Changing the slot's action type changes its child fan-out capacity —
+        // a slot stepping down from a whole-plugin mount (8) to a manual slot
+        // (4, or an empty slot) must shed the extras, keeping the earliest
+        // children since those were added first.
+        let limit = SlotEntry.childLimit(for: action)
+        if config.slots[index].children.count > limit {
+            config.slots[index].children = Array(config.slots[index].children.prefix(limit))
+        }
+    }
+
+    /// Whole-plugin mount: the blade takes the plugin itself as its action
+    /// and its children become the plugin's full op list, in plugin order,
+    /// truncated to the whole-plugin child limit. Registry-injectable so
+    /// tests can mount stub plugins without touching the shared registry.
+    func attachWholePlugin(_ pluginID: String, at index: Int, registry: PluginRegistry = .shared) {
+        guard config.slots.indices.contains(index), let plugin = registry.plugin(id: pluginID) else { return }
+        let ops = plugin.operations.prefix(SlotEntry.childLimit(for: .plugin(pluginID)))
+        config.slots[index].action = .plugin(pluginID)
+        config.slots[index].children = ops.map { .pluginOp(pluginID: pluginID, opID: $0.id) }
     }
 
     /// Sub-actions hang off a CONFIGURED slot — the parent must have an action
@@ -95,4 +120,9 @@ final class SliceStore {
         guard let data = try? JSONEncoder().encode(config) else { return }
         defaults.set(data, forKey: Self.entriesKey)
     }
+
+    /// Test-support: `config` mutations already persist via `didSet`; this
+    /// hook lets a test pin the flush explicitly before reopening the same
+    /// defaults suite in a second store.
+    @inline(__always) func persistNowForTesting() { persist() }
 }
