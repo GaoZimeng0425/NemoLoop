@@ -59,6 +59,13 @@ struct SlotActionMigrationTests {
                 == "pluginOp:system:ocr")
     }
 
+    @Test func isPluginBackedCoversPluginCasesOnly() {
+        #expect(SlotAction.plugin("media").isPluginBacked)
+        #expect(SlotAction.pluginOp(pluginID: "system", opID: "ocr").isPluginBacked)
+        #expect(!SlotAction.app(URL(filePath: "/Applications/Safari.app")).isPluginBacked)
+        #expect(!SlotAction.folder(URL(filePath: "/Users")).isPluginBacked)
+    }
+
     @Test func childLimitDependsOnAction() {
         #expect(SlotEntry.childLimit(for: .plugin("media")) == SlotEntry.maxPluginChildren)
         #expect(SlotEntry.childLimit(for: .pluginOp(pluginID: "system", opID: "ocr"))

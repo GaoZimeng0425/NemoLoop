@@ -25,6 +25,22 @@ extension NSWorkspace: WorkspaceDescribing {
 
 @MainActor
 enum AppScanner {
+    /// Process-wide cache behind `cachedScan()`: the picker reopens across
+    /// slot edits and /Applications doesn't change between openings — scan
+    /// once per process, reuse everywhere. MainActor confinement (the enum's)
+    /// keeps it race-free under Swift 6 checking.
+    private static var cache: [AppEntry]?
+
+    /// First call scans the default dirs synchronously; later calls reuse the
+    /// result. Called off the first body pass (inside a Task from the picker's
+    /// onAppear) so the spinner renders before the scan blocks the main actor.
+    static func cachedScan() -> [AppEntry] {
+        if let cache { return cache }
+        let scanned = scan(dirs: defaultDirs())
+        cache = scanned
+        return scanned
+    }
+
     /// Scans the given directories one level deep for .app bundles, dedupes
     /// by id (bundle id or path), sorts by localized name. Called once when
     /// the picker first opens; the caller caches.

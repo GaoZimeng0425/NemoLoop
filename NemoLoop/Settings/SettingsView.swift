@@ -32,6 +32,36 @@ enum SettingsTab: LuminareTabItem, CaseIterable, Identifiable {
     }
 }
 
+/// Which slot a picker popover is configuring. `popover(item:)` needs a
+/// single optional Identifiable anchor shared by the main slot rows and the
+/// sub-slot "+" buttons, so both collapse into this one target type.
+private enum PickerTarget: Identifiable {
+    case main(Int)
+    case sub(Int)
+
+    /// String ids ("main-3"/"sub-3") keep main and sub on the same slot from
+    /// colliding — a value change re-presents the popover at the new target.
+    var id: String {
+        switch self {
+        case .main(let i): "main-\(i)"
+        case .sub(let i): "sub-\(i)"
+        }
+    }
+
+    var context: PickerContext {
+        switch self {
+        case .main: .mainSlot
+        case .sub: .subSlot
+        }
+    }
+
+    var index: Int {
+        switch self {
+        case .main(let i), .sub(let i): i
+        }
+    }
+}
+
 struct SettingsView: View {
     @Bindable var store: SliceStore
     @Bindable var chrome: SettingsChrome
@@ -39,6 +69,10 @@ struct SettingsView: View {
     @State private var tab: SettingsTab = .ring
     /// Which slot groups have their sub-action rows unfolded.
     @State private var expandedSlots: Set<Int> = []
+    /// The slot the picker popover is configuring, if open. One optional for
+    /// both main rows and sub "+" buttons so `popover(item:)` presents a
+    /// single popover app-wide.
+    @State private var pickerSlot: PickerTarget?
 
     init(store: SliceStore, chrome: SettingsChrome, appearance: AppearanceStore) {
         self._store = Bindable(store)
@@ -135,6 +169,31 @@ struct SettingsView: View {
                 wedgeRow(i)
             }
         }
+        // ONE popover attachment for the whole section: every row shares the
+        // same optional binding, and per-row `.popover(item:)` modifiers would
+        // each present their own popover when it goes non-nil.
+        .popover(item: $pickerSlot) { target in
+            ActionPickerPopover(context: target.context,
+                                store: store,
+                                slot: target.index,
+                                onDismiss: { pickerSlot = nil })
+        }
+        // Whole-plugin mounts auto-expand their chip row: the point of the
+        // mount is the plugin's op fan-out, so it unfolds the moment the pick
+        // lands. The popover's init is pinned (no callback for this), so
+        // react to the config transition instead — any slot whose action just
+        // BECAME a whole-plugin mount expands; re-mounting the same plugin
+        // (no transition) leaves the fold state alone.
+        .onChange(of: store.config) { oldConfig, newConfig in
+            for (i, entry) in newConfig.slots.enumerated()
+            where oldConfig.slots.indices.contains(i) {
+                if case .plugin = entry.action, oldConfig.slots[i].action != entry.action {
+                    // _ = : Set.insert returns (inserted, memberAfter) —
+                    // withAnimation would surface it as an unused result.
+                    withAnimation(.smooth(duration: 0.2)) { _ = expandedSlots.insert(i) }
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -145,29 +204,7 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             LuminareCompose(alignment: .center) {
                 HStack(spacing: 6) {
-                    Menu {
-                        Button("Choose App…") { chooseApp(for: i) }
-                        Button("Choose Folder…") { chooseFolder(for: i) }
-                        // Connected plugins only: a disconnected plugin has
-                        // nothing runnable to offer the ring.
-                        Menu("Plugins") {
-                            ForEach(connectedPlugins, id: \.id) { plugin in
-                                Button("Whole: \(plugin.displayName)") {
-                                    store.attachWholePlugin(plugin.id, at: i)
-                                }
-                                Menu(plugin.displayName) {
-                                    ForEach(plugin.operations, id: \.id) { op in
-                                        Button(op.displayName) {
-                                            store.setAction(.pluginOp(pluginID: plugin.id, opID: op.id), at: i)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Text("Configure")
-                    }
-                    .buttonStyle(.luminareCompact)
+                    slotPickerButton(i, entry: entry)
                     Button("Clear") {
                         withAnimation(.smooth(duration: 0.2)) {
                             store.setAction(nil, at: i)
@@ -224,6 +261,41 @@ struct SettingsView: View {
         }
     }
 
+    /// The slot's action chip — click to (re)configure it in the picker
+    /// popover (replaces the old nested Configure menu). Shows the current
+    /// action as icon + resolved name; the link glyph marks plugin-backed
+    /// slots as references to live plugin config; the name dims when the
+    /// backing plugin is disconnected (same rule as the ring's dark state).
+    /// An empty slot shows an add affordance instead.
+    private func slotPickerButton(_ i: Int, entry: SlotEntry) -> some View {
+        Button {
+            pickerSlot = .main(i)
+        } label: {
+            HStack(spacing: 6) {
+                if let icon = store.icon(at: i) {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: "plus.circle.dashed")
+                        .foregroundStyle(.secondary)
+                }
+                if entry.action?.isPluginBacked == true {
+                    // Reference semantics: this slot mirrors live plugin
+                    // config, not a frozen copy of a pick.
+                    Image(systemName: "link")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                Text(entry.action.map { ActionResolver.name(for: $0) } ?? "Choose…")
+                    .foregroundStyle(entry.action.map { store.isEnabled($0) ? Color.primary : Color.secondary }
+                                     ?? .secondary)
+            }
+        }
+        .buttonStyle(.luminareCompact)
+    }
+
     /// The sub-slot controls of one slot, indented under it: a right-aligned
     /// strip of rounded icon buttons — one per sub-action (click removes, hover
     /// shows the minus badge) — with the add button at the end. Adding stays
@@ -251,23 +323,11 @@ struct SettingsView: View {
 
                     if entry.action != nil,
                        entry.children.count < SlotEntry.childLimit(for: entry.action) {
-                        Menu {
-                            Button("App…") { chooseChildApp(for: i) }
-                            Button("Folder…") { chooseChildFolder(for: i) }
-                            // Same connected-plugins source as the main slot
-                            // menu above, ops only — a sub-slot mounts single
-                            // operations, never a whole plugin.
-                            Menu("Plugins") {
-                                ForEach(connectedPlugins, id: \.id) { plugin in
-                                    Menu(plugin.displayName) {
-                                        ForEach(plugin.operations, id: \.id) { op in
-                                            Button(op.displayName) {
-                                                store.addChild(.pluginOp(pluginID: plugin.id, opID: op.id), at: i)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                        // Opens the same picker popover as the main slot, in
+                        // sub-slot context (ops only — a sub-slot mounts
+                        // single operations, never a whole plugin).
+                        Button {
+                            pickerSlot = .sub(i)
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 13, weight: .semibold))
@@ -276,10 +336,9 @@ struct SettingsView: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        // The chip card wraps the MENU, not the label — a
-                        // borderless menu restyles its label and drops fills.
+                        // The chip card wraps the BUTTON (as it did the old
+                        // borderless menu) so the card chrome survives the
+                        // plain button style.
                         .frame(width: 36, height: 36)
                         .background(RoundedRectangle(cornerRadius: 8).fill(.quinary.opacity(0.6)))
                         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.quaternary))
@@ -325,12 +384,6 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
-    /// Connected plugins for both slot menus. Read during body evaluation so
-    /// toggling a plugin in the Plugins tab re-renders the menus in place.
-    private var connectedPlugins: [any NemoPlugin] {
-        PluginRegistry.shared.plugins.filter { PluginRegistry.shared.isEnabled($0.id) }
-    }
-
     /// Slots are numbered by ring order — blade 0 at 12 o'clock running
     /// clockwise — not by compass position: the fan's wrap gap means half the
     /// old "Upper-left"-style names pointed at nonexistent geometry.
@@ -345,41 +398,13 @@ struct SettingsView: View {
         return entry.children.isEmpty ? base : "\(base) · \(entry.children.count) subs"
     }
 
-    private func chooseApp(for index: Int) {
-        if let url = runOpenPanel(contentTypes: [.application],
-                                  directory: URL(filePath: "/Applications"),
-                                  canChooseDirectories: false) {
-            store.setAction(.app(url), at: index)
-        }
-    }
-
-    private func chooseFolder(for index: Int) {
-        if let url = runOpenPanel(contentTypes: [.folder],
-                                  directory: FileManager.default.homeDirectoryForCurrentUser,
-                                  canChooseDirectories: true) {
-            store.setAction(.folder(url), at: index)
-        }
-    }
-
-    private func chooseChildApp(for index: Int) {
-        if let url = runOpenPanel(contentTypes: [.application],
-                                  directory: URL(filePath: "/Applications"),
-                                  canChooseDirectories: false) {
-            store.addChild(.app(url), at: index)
-        }
-    }
-
-    private func chooseChildFolder(for index: Int) {
-        if let url = runOpenPanel(contentTypes: [.folder],
-                                  directory: FileManager.default.homeDirectoryForCurrentUser,
-                                  canChooseDirectories: true) {
-            store.addChild(.folder(url), at: index)
-        }
-    }
-
-    private func runOpenPanel(contentTypes: [UTType],
-                              directory: URL,
-                              canChooseDirectories: Bool) -> URL? {
+    /// The shared modal file panel behind every manual pick. Static and
+    /// module-visible: ActionPickerPopover's Browse rows call the same helper
+    /// (one source of truth for the app/folder panel semantics) instead of
+    /// carrying a second NSOpenPanel copy.
+    static func runOpenPanel(contentTypes: [UTType],
+                             directory: URL,
+                             canChooseDirectories: Bool) -> URL? {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = contentTypes
         panel.directoryURL = directory

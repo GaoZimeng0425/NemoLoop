@@ -143,6 +143,18 @@ enum SlotAction: Codable, Equatable {
         }
     }
 
+    /// True when the action resolves through the plugin registry at use time:
+    /// its name, symbol, enablement and (for whole mounts) op list all live in
+    /// possibly-changing plugin config rather than a frozen file URL. Settings
+    /// marks such slots with the reference glyph and dims them when the
+    /// backing plugin is disconnected.
+    var isPluginBacked: Bool {
+        switch self {
+        case .plugin, .pluginOp: true
+        case .app, .folder: false
+        }
+    }
+
     /// Stable identity for list rows and diffing (folder row ids must not
     /// collide with app ids that share a basename).
     var identity: String {
