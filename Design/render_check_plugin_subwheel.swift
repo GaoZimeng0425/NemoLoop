@@ -329,7 +329,10 @@ enum SubWheelRenderCheck {
     }
 
     private static func finish() {
-        NSApp.terminate(nil)
+        // Exit DIRECTLY with the verdict code: NSApp.terminate(nil) ends the
+        // process with status 0, which would silently swallow every failure
+        // (the exit() after app.run() in the entry block is unreachable).
+        exit(renderCheckExitCode)
     }
 
     private static func point(angle: Double, radius: CGFloat, center: CGPoint) -> CGPoint {

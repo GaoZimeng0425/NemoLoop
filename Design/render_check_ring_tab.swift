@@ -529,7 +529,10 @@ enum RingTabRenderCheck {
 
     private static func finish(defaults: UserDefaults, suiteName: String) {
         defaults.removePersistentDomain(forName: suiteName)
-        NSApp.terminate(nil)
+        // Exit DIRECTLY with the verdict code: NSApp.terminate(nil) ends the
+        // process with status 0, which would silently swallow every failure
+        // (the exit() after app.run() in the entry block is unreachable).
+        exit(renderCheckExitCode)
     }
 
     /// Canvas point for an angle (degrees, from-up, clockwise) at `radius` ring
