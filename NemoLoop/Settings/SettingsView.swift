@@ -92,7 +92,7 @@ struct SettingsView: View {
     @ViewBuilder private var paneContent: some View {
         switch tab {
         case .ring: ringSettings
-        case .plugins: PluginsTab(registry: PluginRegistry.shared, store: store)
+        case .plugins: PluginsTab(registry: PluginRegistry.shared)
         case .general: placeholder("General settings coming soon.")
         case .appearance: appearanceSettings
         case .about: aboutSettings
@@ -231,8 +231,11 @@ struct SettingsView: View {
     @ViewBuilder
     private func subRows(_ i: Int, entry: SlotEntry) -> some View {
         VStack(alignment: .trailing, spacing: 6) {
+            // childLimit (not the manual cap): a whole-plugin slot widens to
+            // 8 sub-actions, and the add affordance must reflect that headroom.
             if !entry.children.isEmpty
-                || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
+                || (entry.action != nil
+                    && entry.children.count < SlotEntry.childLimit(for: entry.action)) {
                 HStack(spacing: 8) {
                     ForEach(entry.children.indices, id: \.self) { j in
                         // ActionResolver, not SlotAction.displayName: the model
@@ -246,7 +249,8 @@ struct SettingsView: View {
                         }
                     }
 
-                    if entry.action != nil, entry.children.count < SlotEntry.maxChildren {
+                    if entry.action != nil,
+                       entry.children.count < SlotEntry.childLimit(for: entry.action) {
                         Menu {
                             Button("App…") { chooseChildApp(for: i) }
                             Button("Folder…") { chooseChildFolder(for: i) }

@@ -9,7 +9,6 @@ struct PluginsTab: View {
     // Bindable (not a plain let) so enable-state reads inside the cards
     // subscribe the view to registry changes — toggles must re-render cards.
     @Bindable var registry: PluginRegistry
-    let store: SliceStore
 
     var body: some View {
         LuminareSection("Plugins",

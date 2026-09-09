@@ -38,8 +38,7 @@ enum SystemAction: String, Codable, CaseIterable, Identifiable {
 struct SlotEntry: Codable, Equatable {
     static let maxManualChildren = 4
     static let maxPluginChildren = 8
-    /// Pre-plugin name for the manual cap; the settings UI and existing tests
-    /// still read it (the plugin-aware UI lands in a later task).
+    /// Pre-plugin name for the manual cap; existing tests still read it.
     static let maxChildren = maxManualChildren
 
     var action: SlotAction?
@@ -117,8 +116,12 @@ enum SlotAction: Codable, Equatable {
                              opID: try nested.decode(String.self, forKey: .opID))
             return
         }
-        throw DecodingError.dataCorruptedError(forKey: .system, in: container,
-                                               debugDescription: "no known SlotAction case")
+        // Report against the value's own path, not any DecodeKeys member:
+        // `.system` exists for legacy decoding only, and the failure is "no
+        // case matched at all" — blaming a stale key would mislead readers.
+        throw DecodingError.dataCorrupted(.init(
+            codingPath: container.codingPath,
+            debugDescription: "no known SlotAction case (expected app, folder, plugin, or pluginOp)"))
     }
 
     func encode(to encoder: Encoder) throws {
