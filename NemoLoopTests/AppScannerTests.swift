@@ -37,10 +37,25 @@ struct AppScannerTests {
         ws.displayNames["Zeplin.app"] = "Zeplin"
 
         let entries = AppScanner.scan(dirs: [dir], workspace: ws)
-        // Sorted by localized name. localizedCaseInsensitiveCompare follows
-        // the user locale: under zh_CN pinyin collation 备忘录 ("bei…") sorts
-        // before "Safari" — Latin names don't always come first.
-        #expect(entries.map(\.name) == ["备忘录", "Safari", "Zeplin"])
+        let names = entries.map(\.name)
+
+        // Ordering: sort uses localizedCaseInsensitiveCompare, which follows
+        // the user locale — where 备忘录 lands relative to the Latin names is
+        // locale-dependent (before "Safari" under zh_CN pinyin collation,
+        // after "Zeplin" elsewhere). Only the relative order of the ASCII
+        // names is stable across locales, so that's all we assert.
+        #expect(names.contains("Safari"))
+        #expect(names.contains("Zeplin"))
+        if let safari = names.firstIndex(of: "Safari"),
+           let zeplin = names.firstIndex(of: "Zeplin") {
+            #expect(safari < zeplin, "Safari must sort before Zeplin, got \(names)")
+        }
+
+        // Localized-name mapping, asserted independently of collation:
+        // Notes.app surfaces under its Finder display name 备忘录.
+        let notes = entries.first { $0.url.lastPathComponent == "Notes.app" }
+        #expect(notes?.name == "备忘录")
+
         #expect(entries.allSatisfy { $0.url.pathExtension == "app" })
         #expect(entries.allSatisfy { $0.id.contains(".app") }) // no bundle id → path is the id
     }
