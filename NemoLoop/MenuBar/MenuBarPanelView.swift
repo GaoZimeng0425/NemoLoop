@@ -51,7 +51,9 @@ struct MenuBarPanelView: View {
     let onRingPress: () -> Void
     let onRingRelease: () -> Void
     let onOpenApp: (RunningApp) -> Void
-    let onRunPinned: (SlotAction) -> Void
+    /// Carries the slot's children too: a whole-plugin pin releases through
+    /// Launcher's first-configured-child rule, which no-ops without them.
+    let onRunPinned: (SlotAction, [SlotAction]) -> Void
     let onOpenSettings: () -> Void
     let onQuit: () -> Void
     let onHeightChange: (CGFloat) -> Void
@@ -144,9 +146,11 @@ struct MenuBarPanelView: View {
             case .running:
                 if running.indices.contains(row.iconIndex) { onOpenApp(running[row.iconIndex]) }
             case .pinned:
-                if sliceStore.config.slots.indices.contains(row.iconIndex),
-                   let action = sliceStore.config.slots[row.iconIndex].action {
-                    onRunPinned(action)
+                if sliceStore.config.slots.indices.contains(row.iconIndex) {
+                    let entry = sliceStore.config.slots[row.iconIndex]
+                    if let action = entry.action {
+                        onRunPinned(action, entry.children)
+                    }
                 }
             }
         } label: {

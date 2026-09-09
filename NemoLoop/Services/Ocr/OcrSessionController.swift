@@ -9,6 +9,15 @@ import SwiftUI
 final class OcrSessionController {
     static let shared = OcrSessionController()
 
+    /// What happens to the captured region.
+    enum CaptureMode {
+        case ocr   // selection → recognize → translate → preview panel
+        case snip  // selection → pixels straight to the clipboard
+
+        var isOcrFlow: Bool { self == .ocr }
+    }
+
+    private var mode: CaptureMode = .ocr
     private var selectionPanel: OcrSelectionPanel?
     private var permissionPanel: OcrPermissionPanel?
     private var resultPanel: OcrResultPanel?
@@ -16,7 +25,12 @@ final class OcrSessionController {
     private var toastTimer: Timer?
 
     func handleOcrRequested() {
+        handleRequested(mode: .ocr)
+    }
+
+    func handleRequested(mode: CaptureMode) {
         guard selectionPanel == nil, permissionPanel == nil else { return }
+        self.mode = mode
         if CGPreflightScreenCaptureAccess() {
             startSelection()
         } else {
@@ -49,6 +63,16 @@ final class OcrSessionController {
             do {
                 let image = try await Self.capture(rect: rect, screen: screen,
                                                    excluding: CGWindowID(windowNumber))
+                if mode == .snip {
+                    // Pixel dimensions as point size keep the full-resolution
+                    // bitmap when the pasteboard consumer reads it back.
+                    let snip = NSImage(cgImage: image,
+                                       size: NSSize(width: image.width, height: image.height))
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.writeObjects([snip])
+                    showToast("Snipped to clipboard")
+                    return
+                }
                 let lines = OcrTextProcessor.sortedLines(try await OcrEngine.recognize(in: image))
                 guard !lines.isEmpty else {
                     showToast("No text recognized")

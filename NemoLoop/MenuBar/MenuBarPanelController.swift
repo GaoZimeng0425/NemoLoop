@@ -96,9 +96,12 @@ final class MenuBarPanelController {
                 self?.hidePanel()
                 Launcher.switchTo(app: app.app)
             },
-            onRunPinned: { [weak self] action in
+            onRunPinned: { [weak self] action, children in
                 self?.hidePanel()
-                Launcher.run(action)
+                // Children must ride along: a whole-plugin mount releases
+                // through Launcher's first-configured-child op, so without
+                // them the pinned row would only log and do nothing.
+                Launcher.run(action, children: children)
             },
             onOpenSettings: { [weak self] in
                 self?.hidePanel()

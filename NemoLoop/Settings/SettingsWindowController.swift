@@ -8,6 +8,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var windowController: NSWindowController?
     private let chrome = SettingsChrome()
 
+    /// Content widths of the settings window: without and with the Ring tab's
+    /// inspector column. One source shared by the initial content size and
+    /// `setInspectorLayout`, so the two can never disagree.
+    private static let compactWidth: CGFloat = 680
+    private static let inspectorWidth: CGFloat = 960
+
     func show(store: SliceStore, appearance: AppearanceStore) {
         NSApp.setActivationPolicy(.regular)
 
@@ -25,7 +31,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         // would draw a second, centered bar above it (LuminareWindow doesn't hide
         // it; its modal windows do).
         window.titleVisibility = .hidden
-        window.setContentSize(NSSize(width: 680, height: 480))
+        // Size the window for the tab it OPENS on (Ring hosts the inspector
+        // column) instead of popping in compact and animating wider on the
+        // first appear. Set BEFORE the callback is wired so setup itself
+        // notifies no one.
+        chrome.inspectorVisible = SettingsView.initialTab == .ring
+        window.setContentSize(NSSize(width: chrome.inspectorVisible ? Self.inspectorWidth : Self.compactWidth,
+                                     height: 480))
         window.delegate = self
         window.center()
 
@@ -40,8 +52,38 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         let wc = NSWindowController(window: window)
         self.windowController = wc
 
+        // Tab switches toggle the inspector column; the window follows with an
+        // animated resize. Wired here (the chrome's construction site) once the
+        // window exists for the callback to act on.
+        chrome.inspectorDidChange = { [weak self] visible in
+            self?.setInspectorLayout(visible)
+        }
+
         wc.showWindow(nil)
         forceFrontmost()
+    }
+
+    /// Animates the window wider/narrower for the Ring tab's inspector column
+    /// (0.25 s ease-in-out, matching the SwiftUI column animation). Top-left
+    /// anchored so the window grows right, never drifts: AppKit frame origins
+    /// sit at the BOTTOM-left, so the top edge is what must be held — origin.y
+    /// is derived from `maxY` (equal to the old origin while the height is
+    /// unchanged, and still correct if it ever isn't).
+    func setInspectorLayout(_ visible: Bool) {
+        guard let window = windowController?.window else { return }
+        let width = visible ? Self.inspectorWidth : Self.compactWidth
+        // Same-value assignments re-fire the chrome callback (didSet fires on
+        // every assignment); a frame it already has needs no animation.
+        guard window.frame.width != width else { return }
+        let target = NSRect(x: window.frame.origin.x,
+                            y: window.frame.maxY - window.frame.height,
+                            width: width,
+                            height: window.frame.height)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.25
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(target, display: true)
+        }
     }
 
     /// The no-arg `NSApp.activate()` (macOS 14+) is cooperative: invoked from the

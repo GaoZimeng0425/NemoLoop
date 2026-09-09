@@ -35,13 +35,16 @@ final class RingSummoner {
     // MARK: - Summon flows
 
     func summonLauncher(input: RingInput = .pointer) {
-        summon(icons: store.icons, subicons: store.childIcons, input: input) { [weak self] selection in
+        // Payload captured at summon (icons, dark-state flags, children counts)
+        // so blades don't shift mid-interaction — the same RingSnapshot the
+        // Ring tab inspector renders from.
+        summon(RingSnapshot.make(store: store), input: input) { [weak self] selection in
             guard let self, self.store.config.slots.indices.contains(selection.index) else { return }
             let entry = self.store.config.slots[selection.index]
             if let sub = selection.subIndex, entry.children.indices.contains(sub) {
                 Launcher.run(entry.children[sub])
             } else if let action = entry.action {
-                Launcher.run(action)
+                Launcher.run(action, children: entry.children)
             }
         }
     }
@@ -49,7 +52,9 @@ final class RingSummoner {
     func summonRunningApps(input: RingInput = .pointer) {
         let apps = runningApps.snapshot(limit: Self.maxRunningAppWedges)
         guard !apps.isEmpty else { return }   // nothing to switch to → no ring
-        summon(icons: apps.map(\.icon), input: input) { selection in
+        // Running apps get icon-only blades: no sub-wheels, nothing to dim.
+        let snap = RingSnapshot(icons: apps.map(\.icon), subicons: [], dimmed: [], childrenCounts: [])
+        summon(snap, input: input) { selection in
             guard apps.indices.contains(selection.index) else { return }
             // openApplication on the running instance restores minimized windows
             // (Dock-reopen semantics); bare activate() leaves them in the Dock.
@@ -58,18 +63,18 @@ final class RingSummoner {
     }
 
     /// Shared open path: guards against re-entry, records the commit action, shows the ring.
-    private func summon(icons: [NSImage?],
-                        subicons: [[NSImage?]] = [],
+    private func summon(_ snap: RingSnapshot,
                         input: RingInput,
                         onSelect: @escaping (RingSelection) -> Void) {
         guard !controller.isVisible else { return } // ignore auto-repeat / held input
         self.onSelect = onSelect
         let center = ringCenter(for: input)
         viewModel.begin(centerGlobal: center,
-                        wedgeCount: icons.count,
-                        childrenCounts: subicons.map(\.count),
+                        wedgeCount: snap.icons.count,
+                        childrenCounts: snap.childrenCounts,
                         input: input)
-        let content = RingView(icons: icons, viewModel: viewModel, subicons: subicons)
+        let content = RingView(icons: snap.icons, viewModel: viewModel,
+                               subicons: snap.subicons, dimmed: snap.dimmed)
         controller.show(content: content, centeredAtGlobalPoint: center,
                         appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()

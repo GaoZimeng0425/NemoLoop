@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import NemoLoop
 
+// @MainActor because pinnedRows resolves plugin names through the registry
+// (ActionResolver → PluginRegistry.shared), which is MainActor-isolated.
+@MainActor
 struct MenuBarListModelTests {
     // MARK: - Running section
 
@@ -51,13 +54,17 @@ struct MenuBarListModelTests {
         #expect(MenuBarListModel.pinnedRows([SlotEntry(action: .app(url))]).first?.id == url.path)
     }
 
-    @Test func pinnedFoldersAndSystemActionsNameAndId() {
+    @Test func pinnedFoldersAndPluginOpsNameAndId() {
+        // Since .system was dropped, system actions are System plugin ops.
+        // Names resolve through the shared registry (the System plugin is
+        // registered there), so the row reads "Lock Screen", not the
+        // raw-id fallback "system/lockScreen"; ids stay registry-shaped.
         let rows = MenuBarListModel.pinnedRows([
             SlotEntry(action: .folder(URL(fileURLWithPath: "/Users/x/Downloads"))),
-            SlotEntry(action: .system(.lockScreen)),
+            SlotEntry(action: .pluginOp(pluginID: "system", opID: "lockScreen")),
         ])
         #expect(rows.map(\.name) == ["Downloads", "Lock Screen"])
-        #expect(rows.map(\.id) == ["/Users/x/Downloads", "system:lockScreen"])
+        #expect(rows.map(\.id) == ["/Users/x/Downloads", "pluginOp:system:lockScreen"])
         #expect(rows.allSatisfy { !$0.isFrontmost })
     }
 
@@ -66,6 +73,6 @@ struct MenuBarListModelTests {
         #expect(MenuBarListModel.pinnedRows([]).isEmpty)
         #expect(MenuBarListModel.pinnedRows([SlotEntry(), SlotEntry()]).isEmpty)
         // Sub-actions are ring-only: a slot with children but no action lists nothing.
-        #expect(MenuBarListModel.pinnedRows([SlotEntry(children: [.system(.sleep)])]).isEmpty)
+        #expect(MenuBarListModel.pinnedRows([SlotEntry(children: [.pluginOp(pluginID: "system", opID: "sleep")])]).isEmpty)
     }
 }

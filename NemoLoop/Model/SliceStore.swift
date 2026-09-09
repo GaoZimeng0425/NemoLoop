@@ -27,9 +27,15 @@ final class SliceStore {
     private(set) var icons: [NSImage?] = []
     /// Sub-action icons per slot, parallel to `icons` — feeds the dealt-out sub-wheel.
     private(set) var childIcons: [[NSImage?]] = []
+    /// Test-support: the defaults suite name this store was built over, so
+    /// tests can reopen the same on-disk suite in a second store and verify
+    /// persistence. `UserDefaults` can't be asked for its suite name back,
+    /// hence the init parameter. nil on the standard-defaults production path.
+    private(set) var testingSuiteName: String?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, testingSuiteName: String? = nil) {
         self.defaults = defaults
+        self.testingSuiteName = testingSuiteName
         if let data = defaults.data(forKey: Self.entriesKey),
            let decoded = try? JSONDecoder().decode(SliceConfig.self, from: data) {
             self.config = decoded
@@ -48,6 +54,25 @@ final class SliceStore {
     func setAction(_ action: SlotAction?, at index: Int) {
         guard config.slots.indices.contains(index) else { return }
         config.slots[index].action = action
+        // Changing the slot's action type changes its child fan-out capacity —
+        // a slot stepping down from a whole-plugin mount (8) to a manual slot
+        // (4, or an empty slot) must shed the extras, keeping the earliest
+        // children since those were added first.
+        let limit = SlotEntry.childLimit(for: action)
+        if config.slots[index].children.count > limit {
+            config.slots[index].children = Array(config.slots[index].children.prefix(limit))
+        }
+    }
+
+    /// Whole-plugin mount: the blade takes the plugin itself as its action
+    /// and its children become the plugin's full op list, in plugin order,
+    /// truncated to the whole-plugin child limit. Registry-injectable so
+    /// tests can mount stub plugins without touching the shared registry.
+    func attachWholePlugin(_ pluginID: String, at index: Int, registry: PluginRegistry = .shared) {
+        guard config.slots.indices.contains(index), let plugin = registry.plugin(id: pluginID) else { return }
+        let ops = plugin.operations.prefix(SlotEntry.childLimit(for: .plugin(pluginID)))
+        config.slots[index].action = .plugin(pluginID)
+        config.slots[index].children = ops.map { .pluginOp(pluginID: pluginID, opID: $0.id) }
     }
 
     /// Sub-actions hang off a CONFIGURED slot — the parent must have an action
@@ -55,7 +80,7 @@ final class SliceStore {
     func addChild(_ child: SlotAction, at index: Int) {
         guard config.slots.indices.contains(index),
               config.slots[index].action != nil,
-              config.slots[index].children.count < SlotEntry.maxChildren else { return }
+              config.slots[index].children.count < SlotEntry.childLimit(for: config.slots[index].action) else { return }
         config.slots[index].children.append(child)
     }
 
@@ -69,14 +94,36 @@ final class SliceStore {
         icons.indices.contains(index) ? icons[index] : nil
     }
 
+    /// Dark-state rule: a disabled plugin (or a missing op) renders its blade
+    /// desaturated and its trigger inert — the perform side is already
+    /// tolerated by `PluginRegistry.perform`, this feeds the visual.
+    func isEnabled(_ action: SlotAction?) -> Bool {
+        guard let action else { return false }
+        switch action {
+        case .app, .folder:
+            return true
+        case .plugin(let id):
+            return PluginRegistry.shared.isEnabled(id) && PluginRegistry.shared.plugin(id: id) != nil
+        case .pluginOp(let pluginID, let opID):
+            return PluginRegistry.shared.op(pluginID: pluginID, opID: opID) != nil
+                && PluginRegistry.shared.isEnabled(pluginID)
+        }
+    }
+
     /// The cached icon for one action: file icons for apps and folders, a
-    /// symbol-drawn plate for system actions.
+    /// symbol-drawn plate for plugin references.
     static func icon(for action: SlotAction) -> NSImage {
         switch action {
         case .app(let url), .folder(let url):
             return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
-        case .system(let system):
-            return system.symbolImage
+        case .plugin(let id):
+            let plugin = PluginRegistry.shared.plugin(id: id)
+            return SymbolPlate.image(symbolName: plugin?.symbolName ?? "puzzlepiece",
+                                     label: plugin?.displayName ?? id)
+        case .pluginOp:
+            let symbol = ActionResolver.symbolName(for: action) ?? "circle.dashed"
+            return SymbolPlate.image(symbolName: symbol,
+                                     label: ActionResolver.name(for: action))
         }
     }
 
@@ -89,24 +136,9 @@ final class SliceStore {
         guard let data = try? JSONEncoder().encode(config) else { return }
         defaults.set(data, forKey: Self.entriesKey)
     }
-}
 
-extension SystemAction {
-    /// Monochrome symbol drawn at app-icon size, tinted systemGray so it reads
-    /// on both the near-white card stock and the dark charcoal one.
-    var symbolImage: NSImage {
-        let size = NSSize(width: 32, height: 32)
-        let img = NSImage(size: size)
-        img.lockFocus()
-        defer { img.unlockFocus() }
-        guard let base = NSImage(systemSymbolName: symbolName, accessibilityDescription: displayName) else {
-            return img
-        }
-        var configured = base.withSymbolConfiguration(.init(pointSize: 22, weight: .medium))
-        configured = configured?.withSymbolConfiguration(.init(paletteColors: [.systemGray]))
-        configured?.draw(in: NSRect(origin: .zero, size: size),
-                         from: .zero, operation: .sourceOver, fraction: 1,
-                         respectFlipped: true, hints: [.interpolation: NSImageInterpolation.high.rawValue])
-        return img
-    }
+    /// Test-support: `config` mutations already persist via `didSet`; this
+    /// hook lets a test pin the flush explicitly before reopening the same
+    /// defaults suite in a second store.
+    @inline(__always) func persistNowForTesting() { persist() }
 }

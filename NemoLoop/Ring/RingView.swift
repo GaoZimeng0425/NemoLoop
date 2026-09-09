@@ -8,6 +8,10 @@ struct RingView: View {
     /// sub-wheel is open (`viewModel.openSubIndex`).
     let icons: [NSImage?]
     let subicons: [[NSImage?]]
+    /// Dark-state flags per blade (snapshot at summon time, like the icons): a
+    /// disabled plugin's or a missing op's blade renders desaturated and dimmed.
+    /// Empty (the running-apps ring) means no blade is dimmed.
+    let dimmed: [Bool]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
     // Follows the hosting panel's effective appearance: RingWindowController forces
@@ -28,16 +32,19 @@ struct RingView: View {
     /// Single designated init. `preAppeared` renders the settled fan (deal-out
     /// already done) — the seam offline render probes use, since `onAppear`
     /// never fires outside a window.
-    init(icons: [NSImage?], viewModel: RingViewModel, subicons: [[NSImage?]] = [], preAppeared: Bool = false) {
+    init(icons: [NSImage?], viewModel: RingViewModel, subicons: [[NSImage?]] = [], dimmed: [Bool] = [], preAppeared: Bool = false) {
         self.icons = icons
         self.subicons = subicons
+        self.dimmed = dimmed
         self._viewModel = Bindable(viewModel)
         self._appeared = State(initialValue: preAppeared)
     }
 
     /// Canvas radius: the blades, or the dealt-out sub ring when that extends
     /// farther (it sits outside the fan), plus pop and shadow headroom.
-    private var frameRadius: CGFloat {
+    /// Static — the settings inspector scales its embedded copy of this canvas
+    /// down to fit its column and needs the exact number as the scale's base.
+    static var frameRadius: CGFloat {
         max(RingTheme.outerRadius, RingTheme.subBandOuter)
             + RingTheme.subPopOffset + RingTheme.shadowPad
     }
@@ -75,7 +82,7 @@ struct RingView: View {
                 }
             }
         }
-        .frame(width: frameRadius * 2, height: frameRadius * 2)
+        .frame(width: Self.frameRadius * 2, height: Self.frameRadius * 2)
         .compositingGroup()
         .shadow(color: RingTheme.shadowColor, radius: RingTheme.shadowRadius)
         .position(center)
@@ -159,7 +166,15 @@ struct RingView: View {
             // and carries the card's angle, so a card at 6 o'clock shows its logo
             // turned 180° with it, exactly like the reference. The lean on top of
             // that comes from the parent rotation, which moves both together.
+            // Dark state (disabled plugin / missing op): the logo desaturates and
+            // dims so the blade reads inert before any click, and the tooltip says
+            // why. The empty-string help on healthy blades is a no-op in SwiftUI —
+            // it exists so this chain stays unconditional.
+            let isDimmed = dimmed.indices.contains(i) && dimmed[i]
             iconView(icons[i], size: iconSize(pitch: layout.pitch + overlapDeg))
+                .opacity(isDimmed ? 0.35 : 1)
+                .saturation(isDimmed ? 0 : 1)
+                .help(isDimmed ? "Plugin disconnected" : "")
                 .rotationEffect(.degrees(layout.centerAngle(i)))
         }
         .frame(width: side, height: side)
@@ -190,9 +205,9 @@ struct RingView: View {
         // so the fan unfolds clockwise from 12 o'clock card by card.
         .scaleEffect(appeared ? 1 : RingTheme.bladeAppearScale)
         .opacity(appeared ? 1 : 0)
-        .position(x: frameRadius + slot.x + (isHot ? RingTheme.popOffset * radial.x : 0)
+        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.popOffset * radial.x : 0)
                     - (appeared ? 0 : RingTheme.bladeAppearInset * radial.x),
-                  y: frameRadius + slot.y + (isHot ? RingTheme.popOffset * radial.y : 0)
+                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.popOffset * radial.y : 0)
                     - (appeared ? 0 : RingTheme.bladeAppearInset * radial.y))
         .animation(RingTheme.bladeAppear.delay(Double(i) * RingTheme.bladeStagger), value: appeared)
         // Previous card over next: descending zIndex with index, so blade i shingles
@@ -265,8 +280,8 @@ struct RingView: View {
         // the final state offline, springs open in the live ring.
         .scaleEffect(viewModel.openSubIndex == parent ? 1 : 0.6)
         .opacity(viewModel.openSubIndex == parent ? 1 : 0)
-        .position(x: frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
-                  y: frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
+        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
+                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
     }
 
     private var midSubRadius: CGFloat {

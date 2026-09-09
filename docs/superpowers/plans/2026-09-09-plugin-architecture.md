@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- 单测命令（本机签名证书 NemoLoopDev 已就位）：
-  `xcodebuild test -project NemoLoop.xcodeproj -scheme NemoLoop -destination 'platform=macOS' -only-testing:NemoLoopTests CODE_SIGN_IDENTITY="NemoLoopDev" DEVELOPMENT_TEAM="" CODE_SIGN_STYLE=Manual`
+- 单测命令（**ad-hoc 签名**——NemoLoopDev 自签证书在 xctest 宿主下会被 dyld 的 Team ID 校验拒载 `NemoLoop.debug.dylib`，2026-09-09 实测；ad-hoc 只跑单测不涉 TCC，启动构建仍用 NemoLoopDev）：
+  `xcodebuild test -project NemoLoop.xcodeproj -scheme NemoLoop -destination 'platform=macOS' -only-testing:NemoLoopTests CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual`
 - 运行单个测试文件：同命令加 `-only-testing:NemoLoopTests/<StructName>`。
 - UITests 在本环境无法加载，禁止跑 `-only-testing:NemoLoopUITests`。
 - Xcode 工程使用 file-system-synchronized groups：**新建 .swift 文件无需改 pbxproj**。
@@ -69,6 +69,13 @@ struct SlotActionMigrationTests {
         #expect(decoded == .system(.lockScreen))
     }
 
+    @Test func legacyAppJSONStillDecodes() throws {
+        // 磁盘上最多的存量格式：app 槽位同样是嵌套 _0 形状。
+        let json = #"{"app":{"_0":"/Applications/Safari.app"}}"#.data(using: .utf8)!
+        #expect(try JSONDecoder().decode(SlotAction.self, from: json)
+                == .app(URL(filePath: "/Applications/Safari.app")))
+    }
+
     @Test func identityForPluginCases() {
         #expect(SlotAction.plugin("media").identity == "plugin:media")
         #expect(SlotAction.pluginOp(pluginID: "system", opID: "ocr").identity
@@ -98,7 +105,7 @@ struct SlotActionMigrationTests {
 
 - [ ] **Step 2: 跑测试确认失败**
 
-Run: `xcodebuild test -project NemoLoop.xcodeproj -scheme NemoLoop -destination 'platform=macOS' -only-testing:NemoLoopTests/SlotActionMigrationTests CODE_SIGN_IDENTITY="NemoLoopDev" DEVELOPMENT_TEAM="" CODE_SIGN_STYLE=Manual`
+Run: `xcodebuild test -project NemoLoop.xcodeproj -scheme NemoLoop -destination 'platform=macOS' -only-testing:NemoLoopTests/SlotActionMigrationTests CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual`
 Expected: FAIL —— `type 'SlotAction' has no case 'plugin'` 编译错误。
 
 - [ ] **Step 3: 最小实现**
@@ -116,22 +123,37 @@ enum SlotAction: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case app, folder, system, plugin, pluginOp
     }
-    private enum PluginOpKeys: String, CodingKey { case _0 = "pluginID", opID }
+    private enum SingleValueKeys: String, CodingKey { case _0 }
+    private enum PluginOpKeys: String, CodingKey { case pluginID, opID }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let url = try container.decodeIfPresent(URL.self, forKey: .app) { self = .app(url); return }
-        if let url = try container.decodeIfPresent(URL.self, forKey: .folder) { self = .folder(url); return }
-        if let raw = try container.decodeIfPresent(String.self, forKey: .system) {
+        // Swift 合成格式把每个单关联值 case 包成 {"case":{"_0":value}}——
+        // app/folder/system/plugin 四个 case 全部按嵌套 _0 解，平铺一律不认。
+        if container.contains(.app) {
+            let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .app)
+            self = .app(try nested.decode(URL.self, forKey: ._0)); return
+        }
+        if container.contains(.folder) {
+            let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .folder)
+            self = .folder(try nested.decode(URL.self, forKey: ._0)); return
+        }
+        if container.contains(.system) {
+            let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .system)
+            let raw = try nested.decode(String.self, forKey: ._0)
             guard let system = SystemAction(rawValue: raw) else {
                 throw DecodingError.dataCorruptedError(forKey: .system, in: container,
                                                        debugDescription: "unknown system action \(raw)")
             }
             self = .system(system); return
         }
-        if let id = try container.decodeIfPresent(String.self, forKey: .plugin) { self = .plugin(id); return }
-        if let nested = try container.nestedContainer(keyedBy: PluginOpKeys.self, forKey: .pluginOp) {
-            self = .pluginOp(pluginID: try nested.decode(String.self, forKey: ._0),
+        if container.contains(.plugin) {
+            let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .plugin)
+            self = .plugin(try nested.decode(String.self, forKey: ._0)); return
+        }
+        if container.contains(.pluginOp) {
+            let nested = try container.nestedContainer(keyedBy: PluginOpKeys.self, forKey: .pluginOp)
+            self = .pluginOp(pluginID: try nested.decode(String.self, forKey: .pluginID),
                              opID: try nested.decode(String.self, forKey: .opID))
             return
         }
@@ -142,20 +164,28 @@ enum SlotAction: Codable, Equatable {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .app(let url):            try container.encode(url, forKey: .app)
-        case .folder(let url):         try container.encode(url, forKey: .folder)
-        case .system(let system):      try container.encode(system.rawValue, forKey: .system)
-        case .plugin(let id):          try container.encode(id, forKey: .plugin)
+        case .app(let url):
+            var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .app)
+            try nested.encode(url, forKey: ._0)
+        case .folder(let url):
+            var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .folder)
+            try nested.encode(url, forKey: ._0)
+        case .system(let system):
+            var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .system)
+            try nested.encode(system.rawValue, forKey: ._0)
+        case .plugin(let id):
+            var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .plugin)
+            try nested.encode(id, forKey: ._0)
         case .pluginOp(let pluginID, let opID):
             var nested = container.nestedContainer(keyedBy: PluginOpKeys.self, forKey: .pluginOp)
-            try nested.encode(pluginID, forKey: ._0)
+            try nested.encode(pluginID, forKey: .pluginID)
             try nested.encode(opID, forKey: .opID)
         }
     }
 }
 ```
 
-> 注意：Swift 合成格式对 `.system(String rawValue)` 是 `{"system":{"_0":"lockScreen"}}`（嵌套容器）而**不是**平铺字符串。上面为了可读性先写成平铺；**必须**改为与合成一致的嵌套形状——`.system` 的解码/编码各包一层 `nestedContainer(keyedBy: _0)`，测试 `legacySystemJSONStillDecodes` 会逼你改对。`pluginOp` 的关联值标签同理：合成对带标签关联值直接用标签名（无 `_0` 前缀），上面 `PluginOpKeys` 已按标签名对齐。
+> `pluginOp` 的关联值带标签，合成 Codable 直接用标签名（`pluginID`/`opID`，无 `_0` 前缀），上面的 `PluginOpKeys` 已按标签名对齐；单值 case 统一走 `SingleValueKeys._0`。
 
 `SlotEntry` 部分：
 
@@ -669,12 +699,15 @@ git commit -m "feat(plugins): System plugin, registry-backed trigger routing, sy
 - Modify: `NemoLoop/Services/ActionResolver.swift`（删 `.system` 分支）
 - Modify: `NemoLoop/Services/Launcher.swift`（删 `.system` 分支）
 - Modify: `NemoLoop/Model/SliceStore.swift`（icon 删 `.system` 分支）
+- Modify: `NemoLoop/Model/PluginModels.swift`（增 `isEnabledByDefault`）
+- Modify: `NemoLoop/Services/PluginRegistry.swift`（三态启用初始化）
+- Modify: `NemoLoop/Plugins/SystemPlugin.swift`（override 默认启用）
 - Modify: `NemoLoopTests/SlotActionMigrationTests.swift`、`NemoLoopTests/SliceConfigTests.swift:28-39`（旧断言改新格式）
-- Test: `NemoLoopTests/SlotActionMigrationTests.swift`
+- Test: `NemoLoopTests/SlotActionMigrationTests.swift`、`NemoLoopTests/PluginRegistryTests.swift`
 
 **Interfaces:**
 - Consumes: Task 3 的 SystemPlugin（op id == SystemAction.rawValue）。
-- Produces: `SlotAction` 终态四 case；旧 JSON `{"system":{"_0":"lockScreen"}}` 解码为 `.pluginOp(pluginID: "system", opID: "lockScreen")`。
+- Produces: `SlotAction` 终态四 case；旧 JSON `{"system":{"_0":"lockScreen"}}` 解码为 `.pluginOp(pluginID: "system", opID: "lockScreen")`；`NemoPlugin.isEnabledByDefault: Bool`（extension 默认 `false`，SystemPlugin override `true`）；`PluginRegistry` 启用判定三态化——key 未设置时取 `isEnabledByDefault`，显式设置（含 false）永远尊重用户。
 
 - [ ] **Step 1: 改测试表达迁移语义（先红）**
 
@@ -697,6 +730,31 @@ git commit -m "feat(plugins): System plugin, registry-backed trigger routing, sy
 ```
 
 `SliceConfigTests.mixedActionTypesAndChildrenRoundTrip`：把 `.system(.lockScreen)`/`.system(.missionControl)`/`.system(.sleep)` 全部替换为 `.pluginOp(pluginID: "system", opID: "lockScreen")` 等对应 op id。
+
+`PluginRegistryTests.swift` 追加出厂默认启用测试（`.system` 一移除，registry 的 enabled 门槛就是系统动作的唯一通路——默认启用必须与本任务同落，否则老用户升级后系统动作全部哑火）：
+
+```swift
+    @Test func systemPluginEnabledByDefaultAndDisablePersists() async throws {
+        // 全新 defaults：System 出厂即连（key 未写入）。
+        let defaults = makeDefaults()
+        let fresh = PluginRegistry(defaults: defaults, plugins: [SystemPlugin()])
+        #expect(fresh.isEnabled("system"))
+
+        // 显式断开持久化为 false；重开恢复——用户选择永远压过出厂默认。
+        try await fresh.setEnabled("system", false)
+        let afterDisable = PluginRegistry(defaults: defaults, plugins: [SystemPlugin()])
+        #expect(!afterDisable.isEnabled("system"))
+
+        try await afterDisable.setEnabled("system", true)
+        #expect(PluginRegistry(defaults: defaults, plugins: [SystemPlugin()]).isEnabled("system"))
+    }
+
+    @Test func nonDefaultPluginsStayDisabledOnFreshDefaults() {
+        let stub = StubPlugin([StubOp("a")])   // isEnabledByDefault = false（协议默认）
+        let registry = PluginRegistry(defaults: makeDefaults(), plugins: [stub])
+        #expect(!registry.isEnabled("stub"))
+    }
+```
 
 - [ ] **Step 2: 跑测试确认失败**
 
@@ -737,6 +795,26 @@ Menu("System") {
 ```
 
 （子槽菜单同理用 `store.addChild(.pluginOp(pluginID: system.id, opID: op.id), at: i)`。Task 5 会把这两处菜单重做成通用 Plugins 菜单，此处先用最小改动保编译绿。）
+
+出厂默认启用（三态）：
+
+```swift
+// PluginModels.swift —— NemoPlugin extension 增：
+var isEnabledByDefault: Bool { false }
+
+// SystemPlugin.swift —— 增：
+var isEnabledByDefault: Bool { true }
+
+// PluginRegistry.swift —— init 的 enabledIDs 构建改为三态：
+// key 未写入 → isEnabledByDefault；显式写入（含 false）→ 用户选择优先。
+private func initialEnabled(_ plugin: any NemoPlugin, defaults: UserDefaults) -> Bool {
+    let key = Self.enabledKey(plugin.id)
+    if defaults.object(forKey: key) != nil { return defaults.bool(forKey: key) }
+    return plugin.isEnabledByDefault
+}
+```
+
+（`enabledKey(_:)` 是 Task 2 已有的 key 组装辅助；`setEnabled` 不变——它总是显式写入 bool。）
 
 - [ ] **Step 4: 跑全部单测确认绿**
 

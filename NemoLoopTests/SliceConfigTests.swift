@@ -26,12 +26,13 @@ struct SliceConfigTests {
 
     @Test func mixedActionTypesAndChildrenRoundTrip() throws {
         var c = SliceConfig.empty
+        // System actions persist as System plugin ops since .system was removed.
         c.slots[0] = SlotEntry(action: .app(URL(filePath: "/Applications/Safari.app")),
                                children: [.folder(URL(filePath: "/Users/x/Downloads")),
-                                          .system(.lockScreen)])
+                                          .pluginOp(pluginID: "system", opID: "lockScreen")])
         c.slots[1] = SlotEntry(action: .folder(URL(filePath: "/Users/x/Downloads")))
-        c.slots[2] = SlotEntry(action: .system(.missionControl))
-        c.slots[3] = SlotEntry(children: [.system(.sleep)])   // subs without a parent action
+        c.slots[2] = SlotEntry(action: .pluginOp(pluginID: "system", opID: "missionControl"))
+        c.slots[3] = SlotEntry(children: [.pluginOp(pluginID: "system", opID: "sleep")])   // subs without a parent action
         let data = try JSONEncoder().encode(c)
         let decoded = try JSONDecoder().decode(SliceConfig.self, from: data)
         #expect(decoded == c)
@@ -40,8 +41,10 @@ struct SliceConfigTests {
 
 struct SlotEntryTests {
     @Test func childrenAreCappedAtMax() {
-        let many: [SlotAction] = (0..<6).map { .system(SystemAction.allCases[$0 % SystemAction.allCases.count]) }
-        let entry = SlotEntry(action: .system(.lockScreen), children: many)
+        let many: [SlotAction] = (0..<6).map {
+            .pluginOp(pluginID: "system", opID: SystemAction.allCases[$0 % SystemAction.allCases.count].rawValue)
+        }
+        let entry = SlotEntry(action: .pluginOp(pluginID: "system", opID: "lockScreen"), children: many)
         #expect(entry.children.count == SlotEntry.maxChildren)
     }
 
@@ -51,13 +54,16 @@ struct SlotEntryTests {
         // An app and a folder sharing a basename must not collide.
         #expect(app.identity == "/Applications/Safari.app")
         #expect(folder.identity == "/Applications")
-        #expect(SlotAction.system(.lockScreen).identity == "system:lockScreen")
+        #expect(SlotAction.pluginOp(pluginID: "system", opID: "lockScreen").identity
+                == "pluginOp:system:lockScreen")
     }
 
     @Test func displayNames() {
         #expect(SlotAction.app(URL(fileURLWithPath: "/Applications/Safari.app")).displayName == "Safari")
         #expect(SlotAction.folder(URL(fileURLWithPath: "/Users/x/My Files")).displayName == "My Files")
-        #expect(SlotAction.system(.sleepDisplays).displayName == "Sleep Displays")
+        // Model-layer placeholder; the registry resolves the friendly name.
+        #expect(SlotAction.pluginOp(pluginID: "system", opID: "sleepDisplays").displayName
+                == "system/sleepDisplays")
     }
 
     @Test func systemActionsAreComplete() {
@@ -105,22 +111,25 @@ struct SliceStoreMigrationTests {
     @Test func newFormatPersistsUnderItsOwnKey() throws {
         let defaults = freshDefaults("persist")
         let store = SliceStore(defaults: defaults)
-        store.setAction(.system(.lockScreen), at: 4)
+        store.setAction(.pluginOp(pluginID: "system", opID: "lockScreen"), at: 4)
         store.addChild(.folder(URL(filePath: "/Users/x/Downloads")), at: 4)
 
         let reread = SliceStore(defaults: defaults)
-        #expect(reread.config.slots[4].action == .system(.lockScreen))
+        #expect(reread.config.slots[4].action == .pluginOp(pluginID: "system", opID: "lockScreen"))
         #expect(reread.config.slots[4].children == [.folder(URL(filePath: "/Users/x/Downloads"))])
         // The stored payload is the new format, decodable as SliceConfig.
         let data = try #require(defaults.data(forKey: "nemoloop.slotEntries"))
-        #expect(try JSONDecoder().decode(SliceConfig.self, from: data).slots[4].action == .system(.lockScreen))
+        #expect(try JSONDecoder().decode(SliceConfig.self, from: data).slots[4].action
+                == .pluginOp(pluginID: "system", opID: "lockScreen"))
     }
 
     @Test func childMutationsRespectTheCap() {
         let store = SliceStore(defaults: freshDefaults("cap"))
-        store.setAction(.system(.lockScreen), at: 0)
+        store.setAction(.pluginOp(pluginID: "system", opID: "lockScreen"), at: 0)
         for i in 0..<6 {
-            store.addChild(.system(SystemAction.allCases[i % SystemAction.allCases.count]), at: 0)
+            store.addChild(.pluginOp(pluginID: "system",
+                                     opID: SystemAction.allCases[i % SystemAction.allCases.count].rawValue),
+                           at: 0)
         }
         #expect(store.config.slots[0].children.count == SlotEntry.maxChildren)
         store.removeChild(at: 0, offset: 1)
@@ -132,16 +141,16 @@ struct SliceStoreMigrationTests {
         // no-op, and clearing the parent's action keeps existing children (they
         // just can't grow).
         let store = SliceStore(defaults: freshDefaults("require-parent"))
-        store.addChild(.system(.sleep), at: 2)
+        store.addChild(.pluginOp(pluginID: "system", opID: "sleep"), at: 2)
         #expect(store.config.slots[2].children.isEmpty)
 
         store.setAction(.app(URL(filePath: "/Applications/Safari.app")), at: 2)
-        store.addChild(.system(.sleep), at: 2)
-        #expect(store.config.slots[2].children == [.system(.sleep)])
+        store.addChild(.pluginOp(pluginID: "system", opID: "sleep"), at: 2)
+        #expect(store.config.slots[2].children == [.pluginOp(pluginID: "system", opID: "sleep")])
 
         store.setAction(nil, at: 2)
-        store.addChild(.system(.lockScreen), at: 2)
-        #expect(store.config.slots[2].children == [.system(.sleep)])
+        store.addChild(.pluginOp(pluginID: "system", opID: "lockScreen"), at: 2)
+        #expect(store.config.slots[2].children == [.pluginOp(pluginID: "system", opID: "sleep")])
     }
 
     @Test func noDataGivesEmptyConfig() {
