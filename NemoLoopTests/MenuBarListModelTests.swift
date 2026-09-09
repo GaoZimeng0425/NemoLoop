@@ -51,13 +51,15 @@ struct MenuBarListModelTests {
         #expect(MenuBarListModel.pinnedRows([SlotEntry(action: .app(url))]).first?.id == url.path)
     }
 
-    @Test func pinnedFoldersAndSystemActionsNameAndId() {
+    @Test func pinnedFoldersAndPluginOpsNameAndId() {
+        // Since .system was dropped, system actions are System plugin ops:
+        // placeholder displayName and registry-shaped identity.
         let rows = MenuBarListModel.pinnedRows([
             SlotEntry(action: .folder(URL(fileURLWithPath: "/Users/x/Downloads"))),
-            SlotEntry(action: .system(.lockScreen)),
+            SlotEntry(action: .pluginOp(pluginID: "system", opID: "lockScreen")),
         ])
-        #expect(rows.map(\.name) == ["Downloads", "Lock Screen"])
-        #expect(rows.map(\.id) == ["/Users/x/Downloads", "system:lockScreen"])
+        #expect(rows.map(\.name) == ["Downloads", "system/lockScreen"])
+        #expect(rows.map(\.id) == ["/Users/x/Downloads", "pluginOp:system:lockScreen"])
         #expect(rows.allSatisfy { !$0.isFrontmost })
     }
 
@@ -66,6 +68,6 @@ struct MenuBarListModelTests {
         #expect(MenuBarListModel.pinnedRows([]).isEmpty)
         #expect(MenuBarListModel.pinnedRows([SlotEntry(), SlotEntry()]).isEmpty)
         // Sub-actions are ring-only: a slot with children but no action lists nothing.
-        #expect(MenuBarListModel.pinnedRows([SlotEntry(children: [.system(.sleep)])]).isEmpty)
+        #expect(MenuBarListModel.pinnedRows([SlotEntry(children: [.pluginOp(pluginID: "system", opID: "sleep")])]).isEmpty)
     }
 }

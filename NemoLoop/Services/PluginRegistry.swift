@@ -28,9 +28,16 @@ final class PluginRegistry {
     init(defaults: UserDefaults = .standard, plugins: [any NemoPlugin] = []) {
         self.defaults = defaults
         self.plugins = plugins
-        self.enabledIDs = Set(plugins.compactMap { plugin in
-            defaults.bool(forKey: Self.enabledKey(plugin.id)) ? plugin.id : nil
-        })
+        self.enabledIDs = Set(plugins.filter { Self.initialEnabled($0, defaults: defaults) }.map(\.id))
+    }
+
+    /// Tri-state enablement: key absent → the plugin's factory default;
+    /// key present (even false) → the user's explicit choice always wins.
+    /// Static because it runs while `self` is still initializing.
+    private static func initialEnabled(_ plugin: any NemoPlugin, defaults: UserDefaults) -> Bool {
+        let key = Self.enabledKey(plugin.id)
+        if defaults.object(forKey: key) != nil { return defaults.bool(forKey: key) }
+        return plugin.isEnabledByDefault
     }
 
     func isEnabled(_ pluginID: String) -> Bool { enabledIDs.contains(pluginID) }

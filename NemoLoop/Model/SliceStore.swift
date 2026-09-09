@@ -70,13 +70,11 @@ final class SliceStore {
     }
 
     /// The cached icon for one action: file icons for apps and folders, a
-    /// symbol-drawn plate for system actions and plugin references.
+    /// symbol-drawn plate for plugin references.
     static func icon(for action: SlotAction) -> NSImage {
         switch action {
         case .app(let url), .folder(let url):
             return NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
-        case .system(let system):
-            return SymbolPlate.image(symbolName: system.symbolName, label: system.displayName)
         case .plugin(let id):
             let plugin = PluginRegistry.shared.plugin(id: id)
             return SymbolPlate.image(symbolName: plugin?.symbolName ?? "puzzlepiece",

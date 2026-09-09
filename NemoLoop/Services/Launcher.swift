@@ -20,8 +20,6 @@ enum Launcher {
             launch(url: url)
         case .folder(let url):
             NSWorkspace.shared.open(url)
-        case .system(let system):
-            system.perform()
         case .plugin:
             guard let first = children.first, case let .pluginOp(pluginID, opID) = first else {
                 NSLog("NemoLoop: plugin blade released with no ops — nothing to run")

@@ -1,8 +1,8 @@
 import Foundation
 
 /// System-level actions a slot can run — the things that have no file to open.
-/// UI-presentable metadata (label + symbol) lives here too: both the settings
-/// pane and the pinned-row naming rules need it, and the strings are stable.
+/// UI-presentable metadata (label + symbol) lives here too: the System plugin
+/// surfaces it as op names/symbols, and the strings are stable.
 enum SystemAction: String, Codable, CaseIterable, Identifiable {
     case lockScreen
     case sleepDisplays
@@ -59,26 +59,35 @@ struct SlotEntry: Codable, Equatable {
 }
 
 /// What a slot runs when triggered. Apps and folders carry their file URL;
-/// system actions are named enum cases; plugin cases reference the plugin
-/// registry by id (resolved in a later task).
+/// plugin cases reference the plugin registry by id (names, symbols, and
+/// execution resolve through PluginRegistry at use time).
 enum SlotAction: Codable, Equatable {
     case app(URL)
     case folder(URL)
-    case system(SystemAction)                       // removed in Task 4
     case plugin(String)
     case pluginOp(pluginID: String, opID: String)
 
+    /// Keys the encoder writes — exactly the surviving cases.
     private enum CodingKeys: String, CodingKey {
+        case app, folder, plugin, pluginOp
+    }
+    /// Decode-side superset of CodingKeys: also recognizes the `system`
+    /// payload written by pre-plugin builds so legacy data migrates on read.
+    /// A separate enum from CodingKeys is what guarantees the encoder can
+    /// never emit a `system` key again.
+    private enum DecodeKeys: String, CodingKey {
         case app, folder, system, plugin, pluginOp
     }
     private enum SingleValueKeys: String, CodingKey { case _0 }
+    /// Nested `_0` shape of the legacy `{"system":{"_0":"…"}}` payload.
+    private enum LegacySystemKeys: String, CodingKey { case _0 }
     private enum PluginOpKeys: String, CodingKey { case pluginID, opID }
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let container = try decoder.container(keyedBy: DecodeKeys.self)
         // Swift's synthesized format wraps every single-associated-value case
-        // as {"case":{"_0":value}} — decode app/folder/system/plugin through
-        // the nested _0; flat payloads are rejected.
+        // as {"case":{"_0":value}} — decode app/folder/plugin through the
+        // nested _0; flat payloads are rejected.
         if container.contains(.app) {
             let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .app)
             self = .app(try nested.decode(URL.self, forKey: ._0)); return
@@ -87,14 +96,16 @@ enum SlotAction: Codable, Equatable {
             let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .folder)
             self = .folder(try nested.decode(URL.self, forKey: ._0)); return
         }
+        // Legacy v3 data: `.system` was its own case, and its raw payload IS
+        // the System plugin's op id space, so map one to one. No validation
+        // against SystemAction — an unknown value becomes a placeholder op
+        // the registry logs-and-ignores, which beats dropping the user's
+        // saved slot to a decode error.
         if container.contains(.system) {
-            let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .system)
+            let nested = try container.nestedContainer(keyedBy: LegacySystemKeys.self, forKey: .system)
             let raw = try nested.decode(String.self, forKey: ._0)
-            guard let system = SystemAction(rawValue: raw) else {
-                throw DecodingError.dataCorruptedError(forKey: .system, in: container,
-                                                       debugDescription: "unknown system action \(raw)")
-            }
-            self = .system(system); return
+            self = .pluginOp(pluginID: "system", opID: raw)
+            return
         }
         if container.contains(.plugin) {
             let nested = try container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .plugin)
@@ -119,9 +130,6 @@ enum SlotAction: Codable, Equatable {
         case .folder(let url):
             var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .folder)
             try nested.encode(url, forKey: ._0)
-        case .system(let system):
-            var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .system)
-            try nested.encode(system.rawValue, forKey: ._0)
         case .plugin(let id):
             var nested = container.nestedContainer(keyedBy: SingleValueKeys.self, forKey: .plugin)
             try nested.encode(id, forKey: ._0)
@@ -137,7 +145,6 @@ enum SlotAction: Codable, Equatable {
     var identity: String {
         switch self {
         case .app(let url), .folder(let url): return url.path
-        case .system(let system): return "system:\(system.rawValue)"
         case .plugin(let id): return "plugin:\(id)"
         case .pluginOp(let pluginID, let opID): return "pluginOp:\(pluginID):\(opID)"
         }
@@ -147,8 +154,8 @@ enum SlotAction: Codable, Equatable {
         switch self {
         case .app(let url): return url.deletingPathExtension().lastPathComponent
         case .folder(let url): return url.lastPathComponent
-        case .system(let system): return system.displayName
-        // Placeholder until Task 3's MainActor resolver supplies real names.
+        // Placeholder until the MainActor resolver's names replace this call
+        // site (plugin ops resolve through the registry).
         case .plugin(let id): return id
         case .pluginOp(let pluginID, let opID): return "\(pluginID)/\(opID)"
         }

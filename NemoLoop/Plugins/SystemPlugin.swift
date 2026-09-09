@@ -19,6 +19,11 @@ final class SystemPlugin: @MainActor NemoPlugin {
     let symbolName = "gearshape.2"
     let summary = "Built-in system actions: lock, sleep, Mission Control, OCR."
 
+    /// Ships connected: system actions predate the plugin system, so upgraders
+    /// with saved `.system` slots (now System plugin ops) keep working the
+    /// moment they update, without a settings visit.
+    var isEnabledByDefault: Bool { true }
+
     let operations: [any PluginOp] = SystemAction.allCases.map(Op.init(action:))
     var status: PluginStatus { .ready }
 }

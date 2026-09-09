@@ -9,7 +9,7 @@ import AppKit
 enum ActionResolver {
     static func name(for action: SlotAction) -> String {
         switch action {
-        case .app, .folder, .system:
+        case .app, .folder:
             return action.displayName
         case .plugin(let id):
             return PluginRegistry.shared.plugin(id: id)?.displayName ?? id
@@ -23,8 +23,6 @@ enum ActionResolver {
         switch action {
         case .app, .folder:
             return nil
-        case .system(let system):
-            return system.symbolName
         case .plugin(let id):
             return PluginRegistry.shared.plugin(id: id)?.symbolName
         case .pluginOp(let pluginID, let opID):

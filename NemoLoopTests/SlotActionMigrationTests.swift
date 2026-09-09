@@ -27,12 +27,20 @@ struct SlotActionMigrationTests {
         #expect(opObject?["pluginOp"] == ["pluginID": "system", "opID": "ocr"])
     }
 
-    @Test func legacySystemJSONStillDecodes() throws {
-        // Task 1 keeps the .system case: synthesized-era on-disk data must
-        // still decode unchanged.
-        let json = #"{"system":{"_0":"lockScreen"}}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(SlotAction.self, from: json)
-        #expect(decoded == .system(.lockScreen))
+    @Test func legacySystemJSONMapsToPluginOp() throws {
+        // v3-era on-disk data: SystemAction raw values are the System plugin's
+        // op ids, so the legacy payload maps straight across.
+        let cases = ["lockScreen", "sleepDisplays", "sleep", "missionControl", "ocr"]
+        for raw in cases {
+            let json = #"{"system":{"_0":"\#(raw)"}}"#.data(using: .utf8)!
+            let decoded = try JSONDecoder().decode(SlotAction.self, from: json)
+            #expect(decoded == .pluginOp(pluginID: "system", opID: raw))
+        }
+        // Unknown system values must not crash or drop data: they map through
+        // as a placeholder op id the registry will just log-and-ignore.
+        let unknown = #"{"system":{"_0":"legacyThing"}}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(SlotAction.self, from: unknown)
+        #expect(decoded == .pluginOp(pluginID: "system", opID: "legacyThing"))
     }
 
     @Test func legacyAppJSONStillDecodes() throws {

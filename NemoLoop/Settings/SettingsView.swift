@@ -145,10 +145,14 @@ struct SettingsView: View {
                     Menu {
                         Button("Choose App…") { chooseApp(for: i) }
                         Button("Choose Folder…") { chooseFolder(for: i) }
-                        Menu("System Action") {
-                            ForEach(SystemAction.allCases) { system in
-                                Button(system.displayName) {
-                                    store.setAction(.system(system), at: i)
+                        // System ops come from the registry (the System
+                        // plugin), not a direct SystemAction list.
+                        Menu("System") {
+                            if let system = PluginRegistry.shared.plugin(id: "system") {
+                                ForEach(system.operations, id: \.id) { op in
+                                    Button(op.displayName) {
+                                        store.setAction(.pluginOp(pluginID: system.id, opID: op.id), at: i)
+                                    }
                                 }
                             }
                         }
@@ -235,10 +239,14 @@ struct SettingsView: View {
                         Menu {
                             Button("App…") { chooseChildApp(for: i) }
                             Button("Folder…") { chooseChildFolder(for: i) }
+                            // Same registry-driven source as the main slot
+                            // menu above — plugin ops, added as children.
                             Menu("System") {
-                                ForEach(SystemAction.allCases) { system in
-                                    Button(system.displayName) {
-                                        store.addChild(.system(system), at: i)
+                                if let system = PluginRegistry.shared.plugin(id: "system") {
+                                    ForEach(system.operations, id: \.id) { op in
+                                        Button(op.displayName) {
+                                            store.addChild(.pluginOp(pluginID: system.id, opID: op.id), at: i)
+                                        }
                                     }
                                 }
                             }

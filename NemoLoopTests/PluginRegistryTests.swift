@@ -100,4 +100,26 @@ struct PluginRegistryTests {
         #expect(registry.plugin(id: "ghost") == nil)
         #expect(registry.op(pluginID: "ghost", opID: "x") == nil)
     }
+
+    @Test func systemPluginEnabledByDefaultAndDisablePersists() async throws {
+        // Fresh defaults: the System plugin ships connected (key never written).
+        let defaults = makeDefaults()
+        let fresh = PluginRegistry(defaults: defaults, plugins: [SystemPlugin()])
+        #expect(fresh.isEnabled("system"))
+
+        // An explicit disable persists as false; re-enabling restores it —
+        // the user's choice always beats the factory default.
+        try await fresh.setEnabled("system", false)
+        let afterDisable = PluginRegistry(defaults: defaults, plugins: [SystemPlugin()])
+        #expect(!afterDisable.isEnabled("system"))
+
+        try await afterDisable.setEnabled("system", true)
+        #expect(PluginRegistry(defaults: defaults, plugins: [SystemPlugin()]).isEnabled("system"))
+    }
+
+    @Test func nonDefaultPluginsStayDisabledOnFreshDefaults() {
+        let stub = StubPlugin([StubOp("a")])   // isEnabledByDefault = false (protocol default)
+        let registry = PluginRegistry(defaults: makeDefaults(), plugins: [stub])
+        #expect(!registry.isEnabled("stub"))
+    }
 }

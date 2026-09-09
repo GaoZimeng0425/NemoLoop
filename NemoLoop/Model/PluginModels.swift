@@ -26,6 +26,10 @@ protocol NemoPlugin: Identifiable {
     var summary: String { get }
     var operations: [any PluginOp] { get }
     var status: PluginStatus { get }
+    /// Factory enablement: with no persisted key, the registry uses this.
+    /// Declared as a requirement (not just an extension member) so overrides
+    /// dispatch dynamically through `any NemoPlugin` existentials.
+    var isEnabledByDefault: Bool { get }
     func connect() async throws
     func disconnect() async
     var configSections: AnyView? { get }
@@ -35,4 +39,7 @@ extension NemoPlugin {
     func connect() async throws {}
     func disconnect() async {}
     var configSections: AnyView? { nil }
+    /// Opt-in model: nothing runs until the user connects it, except plugins
+    /// that ship pre-connected by overriding this (the System plugin).
+    var isEnabledByDefault: Bool { false }
 }
