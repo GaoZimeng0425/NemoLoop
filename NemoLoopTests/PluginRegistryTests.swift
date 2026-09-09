@@ -1,50 +1,10 @@
 // NemoLoopTests/PluginRegistryTests.swift
 import Testing
 import Foundation
-import SwiftUI
 @testable import NemoLoop
 
 @MainActor
 struct PluginRegistryTests {
-    /// Test doubles: minimal plugin/op that record how often they fire.
-    /// The conformance clauses carry their own @MainActor: this module's
-    /// default isolation is nonisolated, so an un-isolated conformance to a
-    /// MainActor protocol is a data-race error in Swift 6 mode.
-    @MainActor
-    private final class StubOp: @MainActor PluginOp {
-        let id: String; let displayName: String; let symbolName: String
-        private(set) var performed = 0
-        init(_ id: String) { self.id = id; displayName = id; symbolName = "circle" }
-        func perform() { performed += 1 }
-    }
-
-    @MainActor
-    private final class StubPlugin: @MainActor NemoPlugin {
-        let id = "stub"; let displayName = "Stub"; let symbolName = "puzzlepiece"
-        let summary = "test double"
-        let ops: [StubOp]
-        var connectError: Error?
-        private(set) var connectCalls = 0
-        private(set) var disconnectCalls = 0
-        init(_ ops: [StubOp]) { self.ops = ops }
-        var operations: [any PluginOp] { ops }
-        var status: PluginStatus { .ready }
-        func connect() async throws {
-            connectCalls += 1
-            if let connectError { throw connectError }
-        }
-        func disconnect() async { disconnectCalls += 1 }
-    }
-
-    /// Isolated defaults suite: UserDefaults persists arbitrary suite names to
-    /// disk, so scrub the domain first to keep runs independent.
-    private func makeDefaults() -> UserDefaults {
-        let name = "plugin-registry-tests-\(UUID().uuidString)"
-        let d = UserDefaults(suiteName: name)!
-        d.removePersistentDomain(forName: name)
-        return d
-    }
-
     @Test func enabledPersistsAcrossInstances() async throws {
         let plugin = StubPlugin([StubOp("a")])
         let defaults = makeDefaults()
@@ -76,11 +36,11 @@ struct PluginRegistryTests {
         let registry = PluginRegistry(defaults: makeDefaults(), plugins: [StubPlugin([op])])
         try await registry.setEnabled("stub", true)
         registry.perform(pluginID: "stub", opID: "play")
-        #expect(op.performed == 1)
+        #expect(op.performedCount == 1)
 
         registry.perform(pluginID: "stub", opID: "nope")   // no crash, no count
         registry.perform(pluginID: "ghost", opID: "play")
-        #expect(op.performed == 1)
+        #expect(op.performedCount == 1)
     }
 
     @Test func performIgnoredWhenDisabled() async throws {
@@ -90,7 +50,7 @@ struct PluginRegistryTests {
         try await registry.setEnabled("stub", true)
         try await registry.setEnabled("stub", false)
         registry.perform(pluginID: "stub", opID: "play")
-        #expect(op.performed == 0)
+        #expect(op.performedCount == 0)
         #expect(plugin.disconnectCalls == 1)
     }
 

@@ -12,9 +12,12 @@ enum Launcher {
 
     /// Runs any slot action: apps launch, folders open in Finder, plugin ops
     /// fire through the registry. A whole-plugin blade released without dwell
-    /// runs its first configured child op.
+    /// runs its first configured child op. The registry is injectable purely
+    /// for tests; production callers ride `.shared`.
     @MainActor
-    static func run(_ action: SlotAction, children: [SlotAction] = []) {
+    static func run(_ action: SlotAction,
+                    children: [SlotAction] = [],
+                    registry: PluginRegistry = .shared) {
         switch action {
         case .app(let url):
             launch(url: url)
@@ -25,9 +28,9 @@ enum Launcher {
                 NSLog("NemoLoop: plugin blade released with no ops — nothing to run")
                 return
             }
-            PluginRegistry.shared.perform(pluginID: pluginID, opID: opID)
+            registry.perform(pluginID: pluginID, opID: opID)
         case .pluginOp(let pluginID, let opID):
-            PluginRegistry.shared.perform(pluginID: pluginID, opID: opID)
+            registry.perform(pluginID: pluginID, opID: opID)
         }
     }
 

@@ -5,48 +5,13 @@ import Foundation
 
 @MainActor
 struct SliceStorePluginTests {
-    /// Test doubles: a plugin with a configurable op count, so the
-    /// beyond-the-limit path can run against 9 ops without touching the
-    /// shared registry (attachWholePlugin takes a registry for exactly this).
-    /// The conformance clauses carry their own @MainActor: this module's
-    /// default isolation is nonisolated, so an un-isolated conformance to a
-    /// MainActor protocol is a data-race error in Swift 6 mode.
-    @MainActor
-    private final class StubOp: @MainActor PluginOp {
-        let id: String; let displayName: String; let symbolName: String
-        init(_ id: String) { self.id = id; displayName = id; symbolName = "circle" }
-        func perform() {}
-    }
-
-    @MainActor
-    private final class StubPlugin: @MainActor NemoPlugin {
-        let id: String; let displayName: String; let symbolName: String
-        let summary = "test double"
-        let operations: [any PluginOp]
-        var status: PluginStatus { .ready }
-        init(id: String, opCount: Int) {
-            self.id = id
-            self.displayName = id
-            self.symbolName = "puzzlepiece"
-            self.operations = (0..<opCount).map { StubOp("op\($0)") }
-        }
-    }
-
-    /// Isolated defaults suite: UserDefaults persists arbitrary suite names to
-    /// disk, so scrub the domain first to keep runs independent.
-    private func makeDefaults() -> UserDefaults {
-        let name = "slice-store-plugin-tests-\(UUID().uuidString)"
-        let d = UserDefaults(suiteName: name)!
-        d.removePersistentDomain(forName: name)
-        return d
-    }
-
     private func makeStore() -> SliceStore {
+        // Own UUID suite per store: the reload assertion reopens the same
+        // on-disk suite by name (UserDefaults can't be asked for it back),
+        // and parallel tests must not share one.
         let name = "slice-store-plugin-tests-\(UUID().uuidString)"
         let d = UserDefaults(suiteName: name)!
         d.removePersistentDomain(forName: name)
-        // Suite name passed in (UserDefaults can't be asked for it back) so
-        // the reload assertion below can reopen the same on-disk suite.
         return SliceStore(defaults: d, testingSuiteName: name)
     }
 
