@@ -235,8 +235,11 @@ struct SettingsView: View {
                 || (entry.action != nil && entry.children.count < SlotEntry.maxChildren) {
                 HStack(spacing: 8) {
                     ForEach(entry.children.indices, id: \.self) { j in
+                        // ActionResolver, not SlotAction.displayName: the model
+                        // layer's plugin fallback is the raw "pluginID/opID",
+                        // which must never reach the remove tooltip.
                         SubSlotChip(icon: SliceStore.icon(for: entry.children[j]),
-                                    name: entry.children[j].displayName) {
+                                    name: ActionResolver.name(for: entry.children[j])) {
                             withAnimation(.smooth(duration: 0.2)) {
                                 store.removeChild(at: i, offset: j)
                             }

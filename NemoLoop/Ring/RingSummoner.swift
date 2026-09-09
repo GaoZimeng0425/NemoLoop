@@ -35,7 +35,12 @@ final class RingSummoner {
     // MARK: - Summon flows
 
     func summonLauncher(input: RingInput = .pointer) {
-        summon(icons: store.icons, subicons: store.childIcons, input: input) { [weak self] selection in
+        // Dark-state snapshot (same contract as the icons: captured at summon,
+        // so blades don't shift mid-interaction). Only CONFIGURED plugin slots
+        // dim — an empty "+" slot has nothing disconnected to explain, so the
+        // placeholder keeps its usual rendering.
+        let dimmed = store.config.slots.map { $0.action.map { !store.isEnabled($0) } ?? false }
+        summon(icons: store.icons, subicons: store.childIcons, dimmed: dimmed, input: input) { [weak self] selection in
             guard let self, self.store.config.slots.indices.contains(selection.index) else { return }
             let entry = self.store.config.slots[selection.index]
             if let sub = selection.subIndex, entry.children.indices.contains(sub) {
@@ -60,6 +65,7 @@ final class RingSummoner {
     /// Shared open path: guards against re-entry, records the commit action, shows the ring.
     private func summon(icons: [NSImage?],
                         subicons: [[NSImage?]] = [],
+                        dimmed: [Bool] = [],
                         input: RingInput,
                         onSelect: @escaping (RingSelection) -> Void) {
         guard !controller.isVisible else { return } // ignore auto-repeat / held input
@@ -69,7 +75,7 @@ final class RingSummoner {
                         wedgeCount: icons.count,
                         childrenCounts: subicons.map(\.count),
                         input: input)
-        let content = RingView(icons: icons, viewModel: viewModel, subicons: subicons)
+        let content = RingView(icons: icons, viewModel: viewModel, subicons: subicons, dimmed: dimmed)
         controller.show(content: content, centeredAtGlobalPoint: center,
                         appearance: appearanceStore.appearance) { [weak self] in
             self?.cancel()

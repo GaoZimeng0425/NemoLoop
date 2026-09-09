@@ -78,6 +78,20 @@ struct SliceStorePluginTests {
             == (0..<SlotEntry.maxPluginChildren).map { .pluginOp(pluginID: "stub9", opID: "op\($0)") })
     }
 
+    @Test func disabledPluginActionReportsDisabled() async throws {
+        let store = makeStore()
+        try await PluginRegistry.shared.setEnabled("system", true)
+        #expect(store.isEnabled(.pluginOp(pluginID: "system", opID: "lockScreen")))
+        try await PluginRegistry.shared.setEnabled("system", false)
+        #expect(!store.isEnabled(.pluginOp(pluginID: "system", opID: "lockScreen")))
+        #expect(!store.isEnabled(.plugin("system")))
+        #expect(store.isEnabled(.app(URL(filePath: "/A.app"))))
+        // Restore the shared registry: swift-testing suites may run in
+        // parallel, so the System plugin must be back to enabled before
+        // this test exits.
+        try await PluginRegistry.shared.setEnabled("system", true)
+    }
+
     @Test func replacingPluginSlotTrimsChildrenToNewLimit() {
         let store = makeStore()
         store.setAction(.plugin("stub9"), at: 2)      // whole-plugin slot: 8-child capacity

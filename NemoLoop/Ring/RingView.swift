@@ -8,6 +8,10 @@ struct RingView: View {
     /// sub-wheel is open (`viewModel.openSubIndex`).
     let icons: [NSImage?]
     let subicons: [[NSImage?]]
+    /// Dark-state flags per blade (snapshot at summon time, like the icons): a
+    /// disabled plugin's or a missing op's blade renders desaturated and dimmed.
+    /// Empty (the running-apps ring) means no blade is dimmed.
+    let dimmed: [Bool]
     @Bindable var viewModel: RingViewModel
     @Environment(\.ringCenter) private var center
     // Follows the hosting panel's effective appearance: RingWindowController forces
@@ -28,9 +32,10 @@ struct RingView: View {
     /// Single designated init. `preAppeared` renders the settled fan (deal-out
     /// already done) — the seam offline render probes use, since `onAppear`
     /// never fires outside a window.
-    init(icons: [NSImage?], viewModel: RingViewModel, subicons: [[NSImage?]] = [], preAppeared: Bool = false) {
+    init(icons: [NSImage?], viewModel: RingViewModel, subicons: [[NSImage?]] = [], dimmed: [Bool] = [], preAppeared: Bool = false) {
         self.icons = icons
         self.subicons = subicons
+        self.dimmed = dimmed
         self._viewModel = Bindable(viewModel)
         self._appeared = State(initialValue: preAppeared)
     }
@@ -159,7 +164,15 @@ struct RingView: View {
             // and carries the card's angle, so a card at 6 o'clock shows its logo
             // turned 180° with it, exactly like the reference. The lean on top of
             // that comes from the parent rotation, which moves both together.
+            // Dark state (disabled plugin / missing op): the logo desaturates and
+            // dims so the blade reads inert before any click, and the tooltip says
+            // why. The empty-string help on healthy blades is a no-op in SwiftUI —
+            // it exists so this chain stays unconditional.
+            let isDimmed = dimmed.indices.contains(i) && dimmed[i]
             iconView(icons[i], size: iconSize(pitch: layout.pitch + overlapDeg))
+                .opacity(isDimmed ? 0.35 : 1)
+                .saturation(isDimmed ? 0 : 1)
+                .help(isDimmed ? "Plugin disconnected" : "")
                 .rotationEffect(.degrees(layout.centerAngle(i)))
         }
         .frame(width: side, height: side)

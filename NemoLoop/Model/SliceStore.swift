@@ -94,6 +94,22 @@ final class SliceStore {
         icons.indices.contains(index) ? icons[index] : nil
     }
 
+    /// Dark-state rule: a disabled plugin (or a missing op) renders its blade
+    /// desaturated and its trigger inert — the perform side is already
+    /// tolerated by `PluginRegistry.perform`, this feeds the visual.
+    func isEnabled(_ action: SlotAction?) -> Bool {
+        guard let action else { return false }
+        switch action {
+        case .app, .folder:
+            return true
+        case .plugin(let id):
+            return PluginRegistry.shared.isEnabled(id) && PluginRegistry.shared.plugin(id: id) != nil
+        case .pluginOp(let pluginID, let opID):
+            return PluginRegistry.shared.op(pluginID: pluginID, opID: opID) != nil
+                && PluginRegistry.shared.isEnabled(pluginID)
+        }
+    }
+
     /// The cached icon for one action: file icons for apps and folders, a
     /// symbol-drawn plate for plugin references.
     static func icon(for action: SlotAction) -> NSImage {
