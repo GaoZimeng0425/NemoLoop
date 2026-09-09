@@ -72,11 +72,18 @@ final class RingViewModel {
         self.dwellDeadline = nil
         self.isShown = true
         timer?.invalidate()
-        let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.sample() }
+        timer = nil
+        // Settings preview never samples global input, so skip scheduling the
+        // 120 Hz sampler entirely — the preview must not spin a Timer for the
+        // lifetime of the tab. The `sample()` guard stays as the second belt:
+        // the flag can also be set AFTER begin, or toggled mid-run.
+        if !isSettingsPreview {
+            let t = Timer(timeInterval: 1.0 / 120.0, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.sample() }
+            }
+            RunLoop.main.add(t, forMode: .common)
+            timer = t
         }
-        RunLoop.main.add(t, forMode: .common)
-        timer = t
     }
 
     func end() {
