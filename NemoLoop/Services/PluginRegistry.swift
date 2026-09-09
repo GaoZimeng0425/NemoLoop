@@ -11,6 +11,7 @@ import Observation
 final class PluginRegistry {
     static let shared = PluginRegistry(plugins: [
         SystemPlugin(),
+        AppearancePlugin(),
     ])
 
     private static let enabledKeyPrefix = "nemoloop.plugin."
