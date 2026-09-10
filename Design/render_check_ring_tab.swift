@@ -64,6 +64,7 @@
 //     -nemoloop.plugin.system.enabled YES
 //     -nemoloop.plugin.appearance.enabled NO   <- the dim blade (slot 1)
 //     -nemoloop.plugin.screenshot.enabled YES
+//     -nemoloop.plugin.chain.enabled NO   <- 4th plugin, seam-mirrored, off until Task 9
 // The store itself lives in a throwaway UUID defaults suite, removed at exit.
 //
 // PANELS (one output PNG, side by side, each also analyzed on its own pixels):
@@ -174,6 +175,30 @@ final class ScreenshotPlugin: @MainActor NemoPlugin {
         let displayName = "Snip to Clipboard"
         let symbolName = "camera.viewfinder"
         func perform() { NSLog("NemoLoop render harness: snip perform skipped (OCR stack not linked)") }
+    }
+
+    var operations: [any PluginOp] { [Op()] }
+    var status: PluginStatus { .ready }
+}
+
+/// Verbatim from NemoLoop/Plugins/Chain/ChainPlugin.swift, EXCEPT: ops are
+/// fixture-fixed (the real plugin derives them from ChainStore — irrelevant
+/// to pixels) and perform is a no-op. Metadata is verbatim so the picker
+/// model sees the real plugin shape. Pinned DISABLED until the chain
+/// fixture task flips the pin and widens the whole-row assertions.
+@MainActor
+final class ChainPlugin: @MainActor NemoPlugin {
+    static let pluginID = "chain"
+    let id = ChainPlugin.pluginID
+    let displayName = "Chains"
+    let symbolName = "link"
+    let summary = "Run several actions in one trigger — with repeat and inter-step delay."
+
+    struct Op: @MainActor PluginOp {
+        let id = "demo-chain-op"
+        let displayName = "Wrap Up (fixture)"
+        let symbolName = "link"
+        func perform() { NSLog("NemoLoop render harness: chain perform skipped") }
     }
 
     var operations: [any PluginOp] { [Op()] }
@@ -843,6 +868,7 @@ enum RenderCheckBootstrap {
         "-nemoloop.plugin.system.enabled", "YES",
         "-nemoloop.plugin.appearance.enabled", "NO",
         "-nemoloop.plugin.screenshot.enabled", "YES",
+        "-nemoloop.plugin.chain.enabled", "NO",
     ]
 
     /// `swift script.swift` invocation: build the multi-file program and run it.

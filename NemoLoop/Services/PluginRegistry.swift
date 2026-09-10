@@ -13,6 +13,7 @@ final class PluginRegistry {
         SystemPlugin(),
         AppearancePlugin(),
         ScreenshotPlugin(),
+        ChainPlugin(),
     ])
 
     private static let enabledKeyPrefix = "nemoloop.plugin."
