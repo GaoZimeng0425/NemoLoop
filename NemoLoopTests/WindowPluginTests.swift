@@ -116,4 +116,9 @@ struct WindowPluginTests {
                                       plugins: [WindowPlugin(service: RecordingWindowService())])
         #expect(!registry.isEnabled("windows"))
     }
+
+    @Test func configSectionsExposesTheGrantFlow() {
+        let plugin = WindowPlugin(service: RecordingWindowService())
+        #expect(plugin.configSections != nil)
+    }
 }

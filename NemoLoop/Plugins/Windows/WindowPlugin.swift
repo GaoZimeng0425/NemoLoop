@@ -26,8 +26,7 @@ final class WindowPlugin: NemoPlugin {
     var status: PluginStatus { service.isTrusted() ? .ready : .needsAuth }
     let isEnabledByDefault = false
 
-    /// nil until the grant-flow task wires WindowConfigSection in.
-    var configSections: AnyView? { nil }
+    var configSections: AnyView? { AnyView(WindowConfigSection(service: service)) }
 
     var operations: [any PluginOp] {
         WindowRegion.allCases.map { RegionOp(region: $0, service: service) }
