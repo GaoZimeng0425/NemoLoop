@@ -125,7 +125,10 @@ struct ActionPickerModelTests {
         // …whole-plugin mounts are absent (like subSlot)…
         #expect(!plugins.items.contains { if case .wholePlugin = $0.kind { return true }; return false })
         // …and the Chains plugin itself never appears (no chain-in-chain).
-        #expect(!plugins.items.contains { $0.kind == .op(pluginID: "chain", opID: "demo") })
+        // Wildcard on the opID — chain op ids are UUIDs, so an exact-id
+        // comparison could never match; the fixture HAS a populated chain,
+        // so without the hide a `.op("chain", <uuid>)` row WOULD appear.
+        #expect(!plugins.items.contains { if case .op("chain", _) = $0.kind { return true }; return false })
         // Apps and Folders sections unaffected.
         #expect(sections.map(\.title) == ["Apps", "Plugins", "Folders"])
     }
