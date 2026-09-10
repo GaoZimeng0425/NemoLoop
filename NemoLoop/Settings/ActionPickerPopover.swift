@@ -4,15 +4,25 @@ import Luminare
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// What the picker hands back to its host. Slot hosts write the SliceStore;
+/// the chain builder appends a step. Decouples the popover from any one
+/// destination.
+enum PickerOutcome {
+    /// An app, folder, or single plugin op — including picks that arrived
+    /// through the browse open-panels.
+    case action(SlotAction)
+    /// A whole-plugin mount row — mainSlot context only, by construction.
+    case wholePlugin(String)
+}
+
 /// Click-triggered picker popover (native SwiftUI `.popover` — Luminare 0.2.0's
 /// own popover is hover/forceTouch only, which is the wrong trigger for a
 /// settings picker) hosting Luminare content: a search field over a sectioned
 /// list (Apps → Plugins → Folders) built by `ActionPickerModel`. 300×360 per
-/// spec. Picking an item writes the store immediately and dismisses.
+/// spec. Picking an item reports a `PickerOutcome` to the host and dismisses.
 struct ActionPickerPopover: View {
     let context: PickerContext
-    @Bindable var store: SliceStore
-    let slot: Int
+    let onPick: (PickerOutcome) -> Void
     let onDismiss: () -> Void
 
     /// Optional because LuminareTextField binds String? — always read via
@@ -27,14 +37,6 @@ struct ActionPickerPopover: View {
     @State private var cursor = PickerCursor(items: [])
     /// Spec: 搜索（自动聚焦）— the search field claims focus on open.
     @FocusState private var searchFocused: Bool
-
-    init(context: PickerContext, store: SliceStore, slot: Int,
-         onDismiss: @escaping () -> Void) {
-        self.context = context
-        self._store = Bindable(store)
-        self.slot = slot
-        self.onDismiss = onDismiss
-    }
 
     private var model: ActionPickerModel {
         ActionPickerModel(apps: apps ?? [], registry: .shared)
@@ -138,36 +140,23 @@ struct ActionPickerPopover: View {
     private func choose(_ item: PickerItem) {
         switch item.kind {
         case .app(let entry):
-            // One concrete action, then the context decides the store write:
-            // a main pick REPLACES the slot's action, a sub pick APPENDS a
-            // child. (Expanded from the brief's ternary.)
-            let action = SlotAction.app(entry.url)
-            applyByContext(action)
+            onPick(.action(.app(entry.url)))
         case .wholePlugin(let id):
             // Main-only by construction: the model never emits whole-plugin
-            // items for .subSlot — sub-slots mount single operations.
-            store.attachWholePlugin(id, at: slot)
+            // items for .subSlot or .chainStep.
+            onPick(.wholePlugin(id))
         case .op(let pluginID, let opID):
-            applyByContext(.pluginOp(pluginID: pluginID, opID: opID))
+            onPick(.action(.pluginOp(pluginID: pluginID, opID: opID)))
         case .browseApps, .browseFolder:
             // ORDERING CONTRACT: close the popover FIRST, then run the modal
-            // open panel, then write the store. NSOpenPanel.runModal() spins
-            // its own run loop while the popover is still up, and presenting
-            // a modal panel over a live popover detaches the popover shell on
-            // some macOS versions. Early-return: onDismiss already ran.
+            // open panel (NSOpenPanel.runModal() over a live popover detaches
+            // the popover shell on some macOS versions). Early-return: the
+            // host already dismissed via onDismiss.
             onDismiss()
             runOpenPanel(kind: item.kind == .browseApps ? .appPanel : .folderPanel)
             return
         }
         onDismiss()
-    }
-
-    private func applyByContext(_ action: SlotAction) {
-        if context == .mainSlot {
-            store.setAction(action, at: slot)
-        } else {
-            store.addChild(action, at: slot)
-        }
     }
 
     // MARK: - Browse fallback
@@ -192,7 +181,7 @@ struct ActionPickerPopover: View {
                                             canChooseDirectories: true)
         }
         guard let url else { return }
-        applyByContext(kind == .appPanel ? .app(url) : .folder(url))
+        onPick(.action(kind == .appPanel ? .app(url) : .folder(url)))
     }
 }
 
