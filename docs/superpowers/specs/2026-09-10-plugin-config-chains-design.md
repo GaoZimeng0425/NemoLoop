@@ -126,7 +126,7 @@ registry / stub。
   - **步骤列表**:序号 + 动作图标 + 名称 + 删除 + 上移/下移按钮(不做拖拽);
   - "添加步骤" → 弹 ActionPickerPopover(`.chainStep` 上下文);
   - repeatCount Stepper(1…20)、interStepDelay 输入(0…5 秒,0.1 步进);
-  - 步骤为空时保存禁用。
+  - 空链采用“先建后填”:新建即入库(0 步),但空链不产生 op、不可挂载(加第一步后立即可用)——安全属性与“空禁存”等价,已由测试钉住。
 
 ### ActionPickerPopover 回调化重构
 
@@ -166,7 +166,7 @@ Chains 组;扇叶渲染、二级扇叶、暗态逻辑全部走既有路径。
 | `ChainPluginTests` | 动态 op 派生、编辑跟随、默认启用、configSections 非 nil |
 | `PluginRegistryTests` 增补 | perform 返回 Bool(存在/缺失/禁用三态) |
 | `ActionPickerModelTests` 增补 | `.chainStep` 过滤(无 Chains 组、无整挂行)、零 op 插件不出现 |
-| `LauncherRoutingTests` 增补 | 链 op 触发经 registry 路由到 executor |
+| `LauncherRoutingTests` 增补 | 链 op 触发经 registry 路由到 executor(uuid id 空间握手) |
 
 渲染:挂载链后的扇叶渲染与既有 sub-wheel 路径完全同路,不新开 harness;Ring tab 渲染
 harness 的 picker 帧加 Chains 组 fixture 复查一次(沿 T7 自举模式)。UI 改完立即启动验证
