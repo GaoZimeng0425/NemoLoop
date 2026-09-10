@@ -519,7 +519,7 @@ enum RingTabRenderCheck {
               "whole-plugin rows (link-glyph rows): \(wholeRows.map(\.title)) with subtitles \(wholeRows.compactMap(\.subtitle)) (registry order; appearance excluded — disconnected)")
         check(pluginItems.count == 25 && sections[0].items.count == 4 && sections[2].items.count == 1,
               "row counts Apps \(sections[0].items.count) (3 apps + Browse), Plugins \(pluginItems.count) (4 whole + 5+1+1+14 ops), Folders \(sections[2].items.count)")
-        let chainRowListed = wholeRows.map(\.title) == ["System", "Screenshot", "Chains", "Windows"]
+        let wholeRowsListed = wholeRows.map(\.title) == ["System", "Screenshot", "Chains", "Windows"]
         check(!model.connectedPluginFootnote.isEmpty, "connected-only footnote present: \"\(model.connectedPluginFootnote)\"")
 
         let panelC = ZStack {
@@ -584,7 +584,7 @@ enum RingTabRenderCheck {
                 stat("frame drift across runloop spins (differing px of \(Int(self.side * 2))²/\(Int(self.side * 2))² per ring panel): A \(pixelDiff(pngA1, pngA2)), B \(pixelDiff(pngB1, pngB2)), C \(pixelDiff(pngC1, pngC2)), C-probe \(pixelDiff(pngCProbe1, pngCProbe2))")
                 self.writeComposite(pngA: pngA2, pngB: pngB2, pngC: pngC2)
                 self.analyze(pngA: pngA2, pngB: pngB2, pngC: pngC2, pngCProbe: pngCProbe2,
-                             layout: layout, k: k, chainRowsPresent: chainRowListed)
+                             layout: layout, k: k, wholeRowsPresent: wholeRowsListed)
                 self.finish(defaults: defaults, suiteName: suiteName)
             }
         }
@@ -645,7 +645,7 @@ enum RingTabRenderCheck {
 
     // ---- Pixel analysis (reads the rendered PNG bytes, not the live views) ----
     private static func analyze(pngA: Data, pngB: Data, pngC: Data, pngCProbe: Data,
-                                layout: BladeLayout, k: CGFloat, chainRowsPresent: Bool) {
+                                layout: BladeLayout, k: CGFloat, wholeRowsPresent: Bool) {
         guard let gridA = PixelGrid(data: pngA), let gridB = PixelGrid(data: pngB),
               let gridC = PixelGrid(data: pngC), let gridProbe = PixelGrid(data: pngCProbe) else {
             fail("could not decode rendered panels for pixel analysis")
@@ -848,7 +848,7 @@ enum RingTabRenderCheck {
                 "4. sub-wheel open frame: all \(SlotEntry.maxPluginChildren) sub centers inked on the outer band, nothing past the dealt span, border strips clean (\(borderB)px — sub band fits the frame, not clipped)")
         verdict(sectionsComplete(gridC: gridC, headerBands: headerBands.count,
                                  trailingBands: trailingBands.count, trailingPixels: trailingPixels,
-                                 chainRowsPresent: chainRowsPresent),
+                                 wholeRowsPresent: wholeRowsPresent),
                 "5. picker sections complete: APPS/PLUGINS/FOLDERS headers \(headerBands.count) diff bands, whole-plugin link glyphs \(trailingBands.count) bands/\(trailingPixels)px on trailing edge (code side: titles [Apps, Plugins, Folders], 4 whole rows)")
         verdict(ratioA > 0.05 && ratioB > 0.05 && ratioC > 0.01,
                 "6. histograms non-empty: A \(String(format: "%.1f%%", ratioA * 100)), B \(String(format: "%.1f", ratioB * 100)), C \(String(format: "%.1f", ratioC * 100)) ink")
@@ -859,8 +859,8 @@ enum RingTabRenderCheck {
     /// Item 5's code+pixel conjunction (kept readable; numbers printed above).
     private static func sectionsComplete(gridC: PixelGrid, headerBands: Int,
                                          trailingBands: Int, trailingPixels: Int,
-                                         chainRowsPresent: Bool) -> Bool {
-        headerBands == 3 && trailingBands == 4 && trailingPixels >= 48 && gridC.h > 200 && chainRowsPresent
+                                         wholeRowsPresent: Bool) -> Bool {
+        headerBands == 3 && trailingBands == 4 && trailingPixels >= 48 && gridC.h > 200 && wholeRowsPresent
     }
 }
 

@@ -74,7 +74,7 @@ final class AccessibilityWindowService: WindowServicing {
     func toggleFullscreen() -> Bool {
         guard let window = focusedWindow() else { return false }
         guard let current = attribute(window, Self.fullscreenAttribute) as? Bool else {
-            NSLog("NemoLoop windows: AX read AXFullScreen failed")
+            NSLog("NemoLoop windows: AX read \(Self.fullscreenAttribute) failed")
             return false
         }
         let next: CFTypeRef = !current ? kCFBooleanTrue : kCFBooleanFalse
@@ -84,8 +84,12 @@ final class AccessibilityWindowService: WindowServicing {
     // MARK: - AX plumbing
 
     private func focusedWindow() -> AXUIElement? {
-        guard let app = element(systemWide, kAXFocusedApplicationAttribute) else { return nil }
-        return element(app, kAXFocusedWindowAttribute)
+        guard let app = element(systemWide, kAXFocusedApplicationAttribute),
+              let window = element(app, kAXFocusedWindowAttribute) else {
+            NSLog("NemoLoop windows: no focused window")
+            return nil
+        }
+        return window
     }
 
     private func attribute(_ element: AXUIElement, _ name: String) -> CFTypeRef? {

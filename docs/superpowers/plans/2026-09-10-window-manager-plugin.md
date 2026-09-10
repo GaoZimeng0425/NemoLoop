@@ -833,7 +833,7 @@ Same file:
 - [ ] **Step 4: Run harness + full suite**
 
 `swift Design/render_check_ring_tab.swift` → exit 0, `SUMMARY: all pixel checks PASS` (verdict 5 reports 4 trailing bands; panel C lists a "Windows" row with "14 actions").
-Full unit suite → **180 expected** (164 + 7 WindowLayoutTests + 9 WindowPluginTests incl. the grant-flow pin); report the actual total.
+Full unit suite → **180 expected at plan time; actual 184 after the review-fix y-flip suite (4 tests, commit 1788fac)**; report the actual total.
 
 - [ ] **Step 5: Final app launch for acceptance**
 
