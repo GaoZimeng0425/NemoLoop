@@ -4,8 +4,9 @@ import SwiftUI
 struct RingView: View {
     /// One entry per blade; `nil` renders an empty slot (a "+" glyph). `icons.count`
     /// drives the blade count, so the ring is fully dynamic. `subicons` is parallel:
-    /// the dealt-out sub-action icons per blade, rendered only while that blade's
-    /// sub-wheel is open (`viewModel.openSubIndex`).
+    /// the dealt-out sub-action icons per blade, in the tree for every blade but
+    /// hidden (opacity 0) unless that blade's sub-wheel is open
+    /// (`viewModel.openSubIndex`).
     let icons: [NSImage?]
     let subicons: [[NSImage?]]
     /// Dark-state flags per blade (snapshot at summon time, like the icons): a
@@ -74,10 +75,13 @@ struct RingView: View {
             // blades' rim, and the subs' zIndex stays below every blade's (the
             // blade zIndexes leak through the Group), so the first ring presses
             // on the second and hides its seams the same way blades shingle.
-            if let open = viewModel.openSubIndex, subicons.indices.contains(open) {
-                let count = subicons[open].count
-                ForEach(subicons[open].indices, id: \.self) { j in
-                    subBladeView(parent: open, sub: j)
+            // Every wheel stays in the tree (closed = opacity 0), so opening one
+            // deals its cards out one by one — sub j springs after j · stagger,
+            // the same deal the blades use — instead of the tier popping in at once.
+            ForEach(subicons.indices, id: \.self) { parent in
+                let count = subicons[parent].count
+                ForEach(subicons[parent].indices, id: \.self) { j in
+                    subBladeView(parent: parent, sub: j)
                         .zIndex(Double(count - j) * 0.1)
                 }
             }
@@ -88,7 +92,6 @@ struct RingView: View {
         .position(center)
         .animation(RingTheme.highlight, value: viewModel.highlightedIndex)
         .animation(.easeOut(duration: 0.14), value: viewModel.isCancelling)
-        .animation(RingTheme.bladeAppear, value: viewModel.openSubIndex)
         .animation(RingTheme.highlight, value: viewModel.hoveredSubIndex)
         .onAppear { appeared = true }
     }
@@ -230,7 +233,10 @@ struct RingView: View {
         let slot = (x: midSubRadius * radial.x, y: midSubRadius * radial.y)
         let side = RingTheme.bladeViewSide
         let arcCenter = CGPoint(x: side / 2 - slot.x, y: side / 2 - slot.y)
-        let isHot = viewModel.hoveredSubIndex == sub
+        let isOpen = viewModel.openSubIndex == parent
+        // Hover only reads on the open wheel — closed wheels' cards are hidden,
+        // but their sub indices would otherwise collide with the open wheel's.
+        let isHot = isOpen && viewModel.hoveredSubIndex == sub
         let icon = subicons[parent][sub]
         let overlapDeg = min(RingTheme.bladeOverlapDegrees, RingTheme.subPitchDegrees * 0.45)
 
@@ -276,12 +282,18 @@ struct RingView: View {
                           axis: (x: (radial.x + cos(theta)) / 2.squareRoot(),
                                  y: (radial.y + sin(theta)) / 2.squareRoot(), z: 0),
                           perspective: RingTheme.bladeDepthPerspective)
-        // Deal-in bound to state (not a transition): renders deterministically at
-        // the final state offline, springs open in the live ring.
-        .scaleEffect(viewModel.openSubIndex == parent ? 1 : 0.6)
-        .opacity(viewModel.openSubIndex == parent ? 1 : 0)
-        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0),
-                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0))
+        // Deal-out, the same mechanics as the blades: a closed wheel's cards sit
+        // bladeAppearInset toward the ring centre, smaller and transparent; when
+        // the wheel opens sub j springs into its slot after j · stagger, so the
+        // tier unfolds clockwise card by card. Bound to state (not a transition)
+        // so the offline render probes stay deterministic at the settled state.
+        .scaleEffect(isOpen ? 1 : RingTheme.bladeAppearScale)
+        .opacity(isOpen ? 1 : 0)
+        .position(x: Self.frameRadius + slot.x + (isHot ? RingTheme.subPopOffset * radial.x : 0)
+                    - (isOpen ? 0 : RingTheme.bladeAppearInset * radial.x),
+                  y: Self.frameRadius + slot.y + (isHot ? RingTheme.subPopOffset * radial.y : 0)
+                    - (isOpen ? 0 : RingTheme.bladeAppearInset * radial.y))
+        .animation(RingTheme.bladeAppear.delay(Double(sub) * RingTheme.bladeStagger), value: isOpen)
     }
 
     private var midSubRadius: CGFloat {
