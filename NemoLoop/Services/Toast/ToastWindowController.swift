@@ -5,7 +5,8 @@ import SwiftUI
 /// Owns the single shared toast panel. Created once at app launch; observes
 /// `service.panelWanted` (NOT `visible`): the window must stay on screen one
 /// fade-duration longer than the view state, or the dismiss animation gets
-/// cut off when the panel orders out.
+/// cut off when the panel orders out. `showID` rides along so a replacement
+/// toast (panelWanted true→true) still re-presents.
 @MainActor
 final class ToastWindowController {
     private let service: ToastService
@@ -30,6 +31,9 @@ final class ToastWindowController {
     private func observe() {
         withObservationTracking {
             _ = service.panelWanted
+            // Monotonic re-show signal: the equality-checked setter would
+            // swallow a same-value (true→true) panelWanted write.
+            _ = service.showID
         } onChange: {
             Task { @MainActor [weak self] in
                 guard let self else { return }

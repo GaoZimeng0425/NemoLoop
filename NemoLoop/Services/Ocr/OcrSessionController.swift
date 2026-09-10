@@ -1,6 +1,5 @@
 import AppKit
 import ScreenCaptureKit
-import SwiftUI
 
 /// Orchestrates the whole OCR blade flow: ring commit → permission (preflight +
 /// floating logo drag-in) → region selection → capture → recognize → translate

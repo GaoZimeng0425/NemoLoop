@@ -100,4 +100,24 @@ struct ToastServiceTests {
         await eventually(sleeper.slept == [2.0, 3.5])
         #expect(sleeper.cancelledCount >= 1)
     }
+
+    /// Regression: the @Observable macro's equality-checked setter does not
+    /// notify on a same-value write, so a second show() while a toast is
+    /// still visible (panelWanted true→true) must advance showID to carry
+    /// the re-present signal — including when nothing else changes.
+    @Test func everyShowAdvancesShowIDEvenWhenPanelAlreadyWanted() {
+        let service = ToastService(sleeper: ParkingSleeper())
+        service.show(.success, "first")
+        #expect(service.showID == 1)
+
+        // Replace-while-visible with different text: panelWanted stays true,
+        // so only the showID bump distinguishes this show from the last.
+        service.show(.error, "second, a longer replacement")
+        #expect(service.showID == 2)
+
+        // Identical kind+text re-show: every Equatable-visible value is
+        // unchanged — showID must still advance or present() never re-fires.
+        service.show(.error, "second, a longer replacement")
+        #expect(service.showID == 3)
+    }
 }

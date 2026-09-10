@@ -4,8 +4,8 @@ import Observation
 
 /// Registry and enable-state source of truth for built-in plugins. Toggles
 /// drive connect/disconnect; triggering funnels through
-/// perform(pluginID:opID:), where missing/disabled targets just NSLog and
-/// return — a stale slot action must never crash the ring.
+/// perform(pluginID:opID:), where missing/disabled targets surface an error
+/// toast and log — a stale slot action must never crash the ring.
 @MainActor
 @Observable
 final class PluginRegistry {
@@ -72,9 +72,9 @@ final class PluginRegistry {
     }
 
     /// Single funnel for every trigger. Returns false when the plugin is
-    /// disabled or the op is unknown (both still just NSLog — a stale slot
-    /// must never crash the ring); true when the op actually ran. The chain
-    /// executor uses the result to abort a failing sequence.
+    /// disabled or the op is unknown (both surface an error toast and log —
+    /// a stale slot must never crash the ring); true when the op actually
+    /// ran. The chain executor uses the result to abort a failing sequence.
     @discardableResult
     func perform(pluginID: String, opID: String) -> Bool {
         guard isEnabled(pluginID) else {

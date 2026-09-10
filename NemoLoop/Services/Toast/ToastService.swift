@@ -43,6 +43,8 @@ final class ToastService {
     private(set) var current: Toast?
     private(set) var visible = false
     private(set) var panelWanted = false
+    /// Monotonic per-show signal — an Int increment always notifies, so same-value `panelWanted` writes can't swallow re-layout.
+    private(set) var showID = 0
 
     private let sleeper: any ToastSleeping
     private let toastDuration: TimeInterval
@@ -68,6 +70,7 @@ final class ToastService {
             visible = true
             panelWanted = true
         }
+        showID += 1
         restartDismiss(for: kind)
     }
 
