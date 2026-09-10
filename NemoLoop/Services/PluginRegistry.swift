@@ -69,15 +69,21 @@ final class PluginRegistry {
         defaults.set(enabled, forKey: Self.enabledKey(pluginID))
     }
 
-    func perform(pluginID: String, opID: String) {
+    /// Single funnel for every trigger. Returns false when the plugin is
+    /// disabled or the op is unknown (both still just NSLog — a stale slot
+    /// must never crash the ring); true when the op actually ran. The chain
+    /// executor uses the result to abort a failing sequence.
+    @discardableResult
+    func perform(pluginID: String, opID: String) -> Bool {
         guard isEnabled(pluginID) else {
             NSLog("NemoLoop plugin: op \(pluginID).\(opID) skipped — plugin disabled")
-            return
+            return false
         }
         guard let op = op(pluginID: pluginID, opID: opID) else {
             NSLog("NemoLoop plugin: unknown op \(pluginID).\(opID)")
-            return
+            return false
         }
         op.perform()
+        return true
     }
 }
