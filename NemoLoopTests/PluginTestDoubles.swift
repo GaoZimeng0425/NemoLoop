@@ -27,12 +27,12 @@ final class StubPlugin: NemoPlugin {
     let displayName: String
     let symbolName: String
     let summary = "test double"
-    let ops: [StubOp]
+    let ops: [any PluginOp]
     var connectError: Error?
     private(set) var connectCalls = 0
     private(set) var disconnectCalls = 0
 
-    init(id: String = "stub", _ ops: [StubOp]) {
+    init(id: String = "stub", _ ops: [any PluginOp]) {
         self.id = id
         displayName = id
         symbolName = "puzzlepiece"
@@ -62,4 +62,23 @@ func makeDefaults() -> UserDefaults {
     let defaults = UserDefaults(suiteName: name)!
     defaults.removePersistentDomain(forName: name)
     return defaults
+}
+
+/// Op whose perform() runs an injected closure — for tests that need custom
+/// observation (ordering logs, gates) beyond StubOp's counter.
+@MainActor
+final class ClosureOp: PluginOp {
+    let id: String
+    let displayName: String
+    let symbolName: String
+    let onPerform: () -> Void
+
+    init(_ id: String, onPerform: @escaping () -> Void = {}) {
+        self.id = id
+        displayName = id
+        symbolName = "circle"
+        self.onPerform = onPerform
+    }
+
+    func perform() { onPerform() }
 }
