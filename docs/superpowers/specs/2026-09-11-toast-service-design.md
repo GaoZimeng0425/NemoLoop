@@ -119,11 +119,13 @@ final class ToastWindowController {
 
 ## 接入点(第一期)
 
+文案统一英文(app UI 语言为英文:SystemPlugin "System"、OCR 现有文案均英文;2026-09-11 计划期勘误,原中文文案弃用)。
+
 | 调用点 | 类型 | 文案 |
 |---|---|---|
-| `PluginRegistry.perform` 失败(禁用/未知 op,两路合并) | error | 「操作不可用:插件未启用或已移除」 |
-| `ChainExecutor.run` 步骤失败中断 | error | 「链「{name}」在第 {N} 步失败,已中断」 |
-| OCR `showToast` 三处迁移 | success / info / error | 「已截图到剪贴板」/「未识别到文本」/「OCR 失败:{详情}」 |
+| `PluginRegistry.perform` 失败(禁用/未知 op,两路合并) | error | `Action unavailable: plugin disabled or removed` |
+| `ChainExecutor.run` 步骤失败中断(含 open 失败,一并覆盖) | error | `Chain '{name}' failed at step {N} — aborted` |
+| OCR `showToast` 三处迁移 | success / info / error | `Snipped to clipboard` / `No text recognized` / `OCR failed: {detail}`(均为现有字符串,原样保留) |
 
 - 迁移后删除 `OcrSessionController` 私有的 `toastPanel`/`toastTimer`/`showToast`
   整段;`screenUnderMouse` 保留(权限面板还在用)。
@@ -140,6 +142,7 @@ final class ToastWindowController {
 - **渲染自查**:ImageRenderer 出三种 kind 的 PNG,像素验证胶囊存在(黑占比)+
   图标区着色;toast 是独立面板不在环的 3D 层级里,无材质坑,但仍按极暗场景直方图
   惯例验。
-- **实机验收**:合并后重跑 build.sh 重建安装版(项目惯例,防旧构建误报);触发一条
-  含禁用插件步骤的链 → 鼠标屏下方出 error 胶囊,3.5s 淡出;OCR 截图 → success
-  胶囊;全屏 app 上触发 → toast 仍可见。
+- **实机验收**:合并后重跑 build.sh 重建安装版(项目惯例,防旧构建误报);app 加
+  `--toast-test` 启动参数(沿用 `--settings` / `--ocr-test` 的验证口惯例,启动 2s 后弹
+  一条 error toast)供直接验看;触发一条含禁用插件步骤的链 → 鼠标屏下方出 error
+  胶囊,3.5s 淡出;OCR 截图 → success 胶囊;全屏 app 上触发 → toast 仍可见。
