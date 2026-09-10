@@ -100,6 +100,52 @@ struct ActionPickerModelTests {
                 "Plugins not listed are disconnected — connect them in the Plugins tab.")
     }
 
+    // MARK: - Chain-step context + zero-op filter
+
+    private func makeChainModel() async throws -> ActionPickerModel {
+        let defaults = UserDefaults(suiteName: "picker-tests-\(UUID().uuidString)")!
+        let chainStore = ChainStore(defaults: defaults)
+        var chain = ChainDefinition(name: "Wrap Up")
+        chain.steps = [.pluginOp(pluginID: "system", opID: "lockScreen")]
+        chainStore.add(chain)
+        let registry = PluginRegistry(defaults: defaults,
+                                      plugins: [SystemPlugin(), ChainPlugin(store: chainStore)])
+        try await registry.setEnabled("system", true)
+        try await registry.setEnabled("chain", true)
+        return ActionPickerModel(apps: [], registry: registry)
+    }
+
+    @Test func chainStepListsSingleActionsOnly() async throws {
+        let model = try await makeChainModel()
+        let sections = model.sections(context: .chainStep, query: "")
+        let plugins = sections.first { $0.title == "Plugins" }!
+
+        // Single ops from other plugins stay pickable…
+        #expect(plugins.items.contains { $0.kind == .op(pluginID: "system", opID: "lockScreen") })
+        // …whole-plugin mounts are absent (like subSlot)…
+        #expect(!plugins.items.contains { if case .wholePlugin = $0.kind { return true }; return false })
+        // …and the Chains plugin itself never appears (no chain-in-chain).
+        #expect(!plugins.items.contains { $0.kind == .op(pluginID: "chain", opID: "demo") })
+        // Apps and Folders sections unaffected.
+        #expect(sections.map(\.title) == ["Apps", "Plugins", "Folders"])
+    }
+
+    @Test func zeroOpConnectedPluginRendersNothingInMainSlot() async throws {
+        // A connected plugin with no operations (e.g. Chains before the user
+        // creates any) must not render at all — its whole-plugin row would
+        // mount an empty blade that can never run anything.
+        let defaults = UserDefaults(suiteName: "picker-tests-\(UUID().uuidString)")!
+        let registry = PluginRegistry(defaults: defaults,
+                                      plugins: [SystemPlugin(), ChainPlugin(store: ChainStore(defaults: defaults))])
+        try await registry.setEnabled("system", true)
+        try await registry.setEnabled("chain", true)
+        let model = ActionPickerModel(apps: [], registry: registry)
+
+        let items = model.sections(context: .mainSlot, query: "").flatMap(\.items)
+        #expect(!items.contains { $0.kind == .wholePlugin("chain") })
+        #expect(!items.contains { if case .op("chain", _) = $0.kind { return true }; return false })
+    }
+
     // MARK: - PickerCursor (picker keyboard navigation, pinned independently of the view)
 
     /// Minimal rows for cursor tests — only title matters for movement.
