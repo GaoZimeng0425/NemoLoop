@@ -1,6 +1,6 @@
 # 全局 ToastService 设计
 
-日期:2026-09-11。状态:已与用户逐节确认(四拍板),待审阅。
+日期:2026-09-11。状态:已实施(feature/toast-service),验收通过待合并。
 来源:NemoNotch CompletionFlash/HUD 调研(2026-09-11 会话);NemoLoop 现状为无全局
 提示机制——唯一类 toast 是 OCR 模块私有实现,插件失败/链中断只 NSLog。
 分支:feature/toast-service(基于 develop)。
