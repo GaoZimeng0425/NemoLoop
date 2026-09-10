@@ -21,8 +21,6 @@ final class OcrSessionController {
     private var selectionPanel: OcrSelectionPanel?
     private var permissionPanel: OcrPermissionPanel?
     private var resultPanel: OcrResultPanel?
-    private var toastPanel: NSPanel?
-    private var toastTimer: Timer?
 
     func handleOcrRequested() {
         handleRequested(mode: .ocr)
@@ -70,12 +68,12 @@ final class OcrSessionController {
                                        size: NSSize(width: image.width, height: image.height))
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.writeObjects([snip])
-                    showToast("Snipped to clipboard")
+                    ToastService.shared.show(.success, "Snipped to clipboard")
                     return
                 }
                 let lines = OcrTextProcessor.sortedLines(try await OcrEngine.recognize(in: image))
                 guard !lines.isEmpty else {
-                    showToast("No text recognized")
+                    ToastService.shared.show(.info, "No text recognized")
                     return
                 }
                 // Translate only confidently-English lines (en→zh, on-device).
@@ -97,7 +95,7 @@ final class OcrSessionController {
             } catch {
                 NSLog("NemoLoop OCR: failed (\(error))")
                 let detail = String(error.localizedDescription.prefix(48))
-                showToast("OCR failed: \(detail)")
+                ToastService.shared.show(.error, "OCR failed: \(detail)")
             }
         }
     }
@@ -157,46 +155,6 @@ final class OcrSessionController {
         }
         permissionPanel = panel
         panel.makeKeyAndOrderFront(nil)
-    }
-
-    // MARK: - Toast
-
-    private func showToast(_ text: String) {
-        toastPanel?.orderOut(nil)
-        toastTimer?.invalidate()
-
-        let size = NSSize(width: 240, height: 44)
-        let screen = screenUnderMouse()
-        let frame = NSRect(x: screen.frame.midX - size.width / 2,
-                           y: screen.frame.midY - size.height / 2,
-                           width: size.width, height: size.height)
-        _ = frame
-        let panel = NSPanel(contentRect: frame,
-                            styleMask: [.borderless, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.level = .screenSaver
-        panel.setFrame(frame, display: true)
-
-        let host = NSHostingView(rootView: AnyView(
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: size.width, height: size.height)
-                .background(RoundedRectangle(cornerRadius: 10).fill(.black.opacity(0.75)))
-        ))
-        host.frame = NSRect(origin: .zero, size: size)
-        panel.contentView = host
-        panel.orderFrontRegardless()
-        toastPanel = panel
-
-        toastTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.toastPanel?.orderOut(nil)
-                self?.toastPanel = nil
-            }
-        }
     }
 
     private func screenUnderMouse() -> NSScreen {

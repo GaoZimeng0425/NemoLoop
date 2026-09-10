@@ -79,10 +79,12 @@ final class PluginRegistry {
     func perform(pluginID: String, opID: String) -> Bool {
         guard isEnabled(pluginID) else {
             NSLog("NemoLoop plugin: op \(pluginID).\(opID) skipped — plugin disabled")
+            ToastService.shared.show(.error, "Action unavailable: plugin disabled or removed")
             return false
         }
         guard let op = op(pluginID: pluginID, opID: opID) else {
             NSLog("NemoLoop plugin: unknown op \(pluginID).\(opID)")
+            ToastService.shared.show(.error, "Action unavailable: plugin disabled or removed")
             return false
         }
         op.perform()

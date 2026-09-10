@@ -84,6 +84,8 @@ final class ChainExecutor: ChainExecuting {
                 }
                 guard performStep(step) else {
                     NSLog("NemoLoop chain: step \(index + 1) failed — chain '\(chain.name)' aborted")
+                    ToastService.shared.show(.error,
+                        "Chain '\(chain.name)' failed at step \(index + 1) — aborted")
                     return
                 }
             }
