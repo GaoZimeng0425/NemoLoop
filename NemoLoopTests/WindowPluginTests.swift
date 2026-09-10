@@ -122,3 +122,55 @@ struct WindowPluginTests {
         #expect(plugin.configSections != nil)
     }
 }
+
+/// The AX↔AppKit y-flip is the only coordinate math in the real service
+/// (the rest is guarded by RecordingWindowService tests) — pinned here
+/// against concrete numbers, pure, no screens required.
+@MainActor
+struct WindowCoordinateFlipTests {
+    // The primary screen's top edge in AppKit space (screens.first.frame.maxY
+    // in production): a 900pt-tall primary, origin (0,0).
+    private let primaryMaxY: CGFloat = 900
+
+    @Test func axTopLeftOriginFlipsToAppKitBottomLeft() {
+        // AX y=100 is 100pt BELOW the primary top; the rect's AppKit top
+        // edge is 900−100=800, so its bottom-left origin is 750.
+        let ax = CGRect(x: 100, y: 100, width: 200, height: 50)
+        #expect(AccessibilityWindowService.appKitFrame(fromAX: ax, primaryMaxY: primaryMaxY)
+                == CGRect(x: 100, y: 750, width: 200, height: 50))
+    }
+
+    @Test func appKitFrameFlipsBackToAX() {
+        // Bottom-left origin 750 means the top edge is 800, i.e. 100pt
+        // below the primary top in AX's top-down space.
+        let appKit = CGRect(x: 100, y: 750, width: 200, height: 50)
+        #expect(AccessibilityWindowService.axFrame(fromAppKit: appKit, primaryMaxY: primaryMaxY)
+                == CGRect(x: 100, y: 100, width: 200, height: 50))
+    }
+
+    @Test func flipIsInvolutionOnRepresentativeFrames() {
+        // appKitFrame(axFrame(f)) == f and back, across plain, side-offset,
+        // and off-primary-negative frames.
+        let frames = [
+            CGRect(x: 0, y: 0, width: 1440, height: 900),
+            CGRect(x: 200, y: 0, width: 620, height: 900),
+            CGRect(x: 820, y: 225.5, width: 620, height: 450),
+            CGRect(x: -500, y: 1200, width: 400, height: 300),
+        ]
+        for frame in frames {
+            #expect(AccessibilityWindowService.axFrame(fromAppKit:
+                        AccessibilityWindowService.appKitFrame(fromAX: frame, primaryMaxY: primaryMaxY),
+                        primaryMaxY: primaryMaxY) == frame)
+            #expect(AccessibilityWindowService.appKitFrame(fromAX:
+                        AccessibilityWindowService.axFrame(fromAppKit: frame, primaryMaxY: primaryMaxY),
+                        primaryMaxY: primaryMaxY) == frame)
+        }
+    }
+
+    @Test func flipPreservesSize() {
+        let ax = CGRect(x: 100, y: 100, width: 200, height: 50)
+        let flipped = AccessibilityWindowService.appKitFrame(fromAX: ax, primaryMaxY: primaryMaxY)
+        #expect(flipped.width == ax.width)
+        #expect(flipped.height == ax.height)
+    }
+}

@@ -32,9 +32,10 @@ final class AccessibilityWindowService: WindowServicing {
 
     private var systemWide: AXUIElement { AXUIElementCreateSystemWide() }
 
-    /// This SDK's HIServices exports no kAXFullscreenAttribute constant
-    /// (only the FullScreenButton variants); the wire name is "AXFullscreen".
-    private static let fullscreenAttribute = "AXFullscreen"
+    /// This SDK's HIServices exports no fullscreen-state constant (only the
+    /// FullScreenButton variants); the window attribute's wire name is
+    /// "AXFullScreen" — capital S, matching the AXFullScreenButton family.
+    private static let fullscreenAttribute = "AXFullScreen"
 
     func isTrusted() -> Bool { AXIsProcessTrusted() }
 
@@ -47,12 +48,15 @@ final class AccessibilityWindowService: WindowServicing {
         guard let window = focusedWindow() else { return nil }
         guard let position = value(window, kAXPositionAttribute) as? CGPoint,
               let size = value(window, kAXSizeAttribute) as? CGSize else { return nil }
-        return CGRect(origin: position, size: size)
+        guard let primaryMaxY = NSScreen.screens.first?.frame.maxY else { return nil }
+        return Self.appKitFrame(fromAX: CGRect(origin: position, size: size), primaryMaxY: primaryMaxY)
     }
 
     func setFrame(_ frame: CGRect) -> Bool {
         guard let window = focusedWindow() else { return false }
-        var origin = frame.origin
+        guard let primaryMaxY = NSScreen.screens.first?.frame.maxY else { return false }
+        let converted = Self.axFrame(fromAppKit: frame, primaryMaxY: primaryMaxY)
+        var origin = converted.origin
         var size = frame.size
         guard let position = AXValueCreate(.cgPoint, &origin),
               let axSize = AXValueCreate(.cgSize, &size) else { return false }
@@ -69,7 +73,10 @@ final class AccessibilityWindowService: WindowServicing {
 
     func toggleFullscreen() -> Bool {
         guard let window = focusedWindow() else { return false }
-        guard let current = attribute(window, Self.fullscreenAttribute) as? Bool else { return false }
+        guard let current = attribute(window, Self.fullscreenAttribute) as? Bool else {
+            NSLog("NemoLoop windows: AX read AXFullScreen failed")
+            return false
+        }
         let next: CFTypeRef = !current ? kCFBooleanTrue : kCFBooleanFalse
         return setAttribute(window, Self.fullscreenAttribute, next)
     }
@@ -111,5 +118,18 @@ final class AccessibilityWindowService: WindowServicing {
         var size = CGSize.zero
         if AXValueGetValue(raw as! AXValue, .cgSize, &size) { return size }
         return nil
+    }
+}
+
+/// AX global coordinates are top-left origin; AppKit is bottom-left. The
+/// flip is one global linear transform against the primary screen's top
+/// (NSScreen.screens.first.frame.maxY — the screen at origin (0,0)).
+extension AccessibilityWindowService {
+    static func appKitFrame(fromAX frame: CGRect, primaryMaxY: CGFloat) -> CGRect {
+        CGRect(x: frame.minX, y: primaryMaxY - frame.maxY, width: frame.width, height: frame.height)
+    }
+
+    static func axFrame(fromAppKit frame: CGRect, primaryMaxY: CGFloat) -> CGRect {
+        CGRect(x: frame.minX, y: primaryMaxY - frame.maxY, width: frame.width, height: frame.height)
     }
 }
