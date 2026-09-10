@@ -73,8 +73,9 @@ enum WindowRegion: String, CaseIterable, Identifiable {
 
 图标:半屏 `rectangle.lefthalf.filled` / `rectangle.righthalf.filled` /
 `rectangle.tophalf.filled` / `rectangle.bottomhalf.filled`;三分格
-`rectangle.leadingthird.inset.filled` / `rectangle.centerthird.inset.filled` /
-`rectangle.trailingthird.inset.filled`(缺则换近邻变体并回写);四象限
+`rectangle.leadingthird.inset.filled` / `rectangle.inset.filled` /
+`rectangle.trailingthird.inset.filled`(centerthird 原名
+`rectangle.centerthird.inset.filled` 在本 SDK 缺失,已按近邻变体规则替换并回写);四象限
 `arrow.up.left.square` / `arrow.up.right.square` / `arrow.down.left.square` /
 `arrow.down.right.square`;maximize `arrow.up.left.and.arrow.down.right`。
 
