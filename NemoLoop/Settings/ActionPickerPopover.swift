@@ -166,8 +166,9 @@ struct ActionPickerPopover: View {
     /// Manual browse when the scanned list doesn't carry what the user wants.
     /// Reuses SettingsView's shared panel (one source of truth for the
     /// app/folder panel semantics: apps root at /Applications, .application
-    /// type; folders root at the home dir, directories selectable) and routes
-    /// the pick through the same context rule as direct picks.
+    /// type; folders root at the home dir, directories selectable); panel
+    /// picks report through the same onPick channel as direct picks (context
+    /// handling lives with the host).
     private func runOpenPanel(kind: PanelKind) {
         let url: URL?
         switch kind {
