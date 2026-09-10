@@ -82,4 +82,20 @@ struct PluginRegistryTests {
         let registry = PluginRegistry(defaults: makeDefaults(), plugins: [stub])
         #expect(!registry.isEnabled("stub"))
     }
+
+    @Test func performReturnsTrueOnlyWhenRouted() async throws {
+        // The chain executor (and any future combinator) needs perform to
+        // report routing success so it can fail the sequence fast.
+        let op = StubOp("play")
+        let plugin = StubPlugin([op])
+        let registry = PluginRegistry(defaults: makeDefaults(), plugins: [plugin])
+        try await registry.setEnabled("stub", true)
+
+        #expect(registry.perform(pluginID: "stub", opID: "play") == true)
+        #expect(registry.perform(pluginID: "stub", opID: "nope") == false)   // unknown op
+        #expect(registry.perform(pluginID: "ghost", opID: "play") == false)  // unknown plugin
+
+        try await registry.setEnabled("stub", false)
+        #expect(registry.perform(pluginID: "stub", opID: "play") == false)   // disabled
+    }
 }

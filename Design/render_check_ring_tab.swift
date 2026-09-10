@@ -37,13 +37,15 @@
 // ScreenshotPlugin -> OcrSessionController -> OcrResultPanel, and SystemPlugin
 // -> SystemAction.perform -> OcrSessionController — and OcrResultPanel.swift
 // imports Luminare, a Swift package no plain swiftc invocation can link. So
-// exactly three tiny seams are mirrored here instead (each marked verbatim
+// exactly four tiny seams are mirrored here instead (each marked verbatim
 // below, each irrelevant to pixels — perform() is never invoked by a render):
 //     - SystemAction.perform (SystemActions.swift, with the one .ocr case
 //       no-op'd; lock/sleep/Mission-Control paths copied verbatim)
 //     - ScreenshotPlugin (ScreenshotPlugin.swift with Op.perform no-op'd;
 //       id/displayName/symbolName/op list verbatim)
 //     - ringCenter environment key (RingWindowController.swift, verbatim)
+//     - ChainPlugin (ChainPlugin.swift with fixture-fixed ops and perform
+//       no-op'd; metadata verbatim)
 //
 // PICKER FALLBACK (per the brief): ActionPickerPopover imports Luminare
 // (LuminareTextField), so the popover chrome cannot be compiled by pure swiftc.
@@ -59,11 +61,12 @@
 // REGISTRY DETERMINISM: RingSnapshot dims a blade via PluginRegistry.shared,
 // which reads UserDefaults.standard (tri-state: key present wins). The
 // bootstrap therefore launches the binary with UserDefaults ARGUMENT-domain
-// pairs that pin all three plugins explicitly — they override any real persisted
+// pairs that pin all four plugins explicitly — they override any real persisted
 // keys, mutate nothing on disk, and make the dim state deterministic:
 //     -nemoloop.plugin.system.enabled YES
 //     -nemoloop.plugin.appearance.enabled NO   <- the dim blade (slot 1)
 //     -nemoloop.plugin.screenshot.enabled YES
+//     -nemoloop.plugin.chain.enabled YES   <- 4th plugin, seam-mirrored, ON
 // The store itself lives in a throwaway UUID defaults suite, removed at exit.
 //
 // PANELS (one output PNG, side by side, each also analyzed on its own pixels):
@@ -174,6 +177,30 @@ final class ScreenshotPlugin: @MainActor NemoPlugin {
         let displayName = "Snip to Clipboard"
         let symbolName = "camera.viewfinder"
         func perform() { NSLog("NemoLoop render harness: snip perform skipped (OCR stack not linked)") }
+    }
+
+    var operations: [any PluginOp] { [Op()] }
+    var status: PluginStatus { .ready }
+}
+
+/// Verbatim from NemoLoop/Plugins/Chain/ChainPlugin.swift, EXCEPT: ops are
+/// fixture-fixed (the real plugin derives them from ChainStore — irrelevant
+/// to pixels) and perform is a no-op. Metadata is verbatim so the picker
+/// model sees the real plugin shape. Pinned ENABLED since the chain fixture
+/// task — the fixture op yields the third whole-plugin picker row.
+@MainActor
+final class ChainPlugin: @MainActor NemoPlugin {
+    static let pluginID = "chain"
+    let id = ChainPlugin.pluginID
+    let displayName = "Chains"
+    let symbolName = "link"
+    let summary = "Run several actions in one trigger — with repeat and inter-step delay."
+
+    struct Op: @MainActor PluginOp {
+        let id = "demo-chain-op"
+        let displayName = "Wrap Up (fixture)"
+        let symbolName = "link"
+        func perform() { NSLog("NemoLoop render harness: chain perform skipped") }
     }
 
     var operations: [any PluginOp] { [Op()] }
@@ -453,10 +480,11 @@ enum RingTabRenderCheck {
         let wholeRows = pluginItems.filter { item in
             if case .wholePlugin = item.kind { return true } else { return false }
         }
-        check(wholeRows.map(\.title) == ["System", "Screenshot"],
-              "whole-plugin rows (link-glyph rows): \(wholeRows.map(\.title)) with subtitles \(wholeRows.compactMap(\.subtitle))")
-        check(pluginItems.count == 8 && sections[0].items.count == 4 && sections[2].items.count == 1,
-              "row counts Apps \(sections[0].items.count) (3 apps + Browse), Plugins \(pluginItems.count) (2 whole + 6 ops), Folders \(sections[2].items.count)")
+        check(wholeRows.map(\.title) == ["System", "Screenshot", "Chains"],
+              "whole-plugin rows (link-glyph rows): \(wholeRows.map(\.title)) with subtitles \(wholeRows.compactMap(\.subtitle)) (appearance excluded — disconnected)")
+        check(pluginItems.count == 10 && sections[0].items.count == 4 && sections[2].items.count == 1,
+              "row counts Apps \(sections[0].items.count) (3 apps + Browse), Plugins \(pluginItems.count) (3 whole + 7 ops), Folders \(sections[2].items.count)")
+        let chainRowListed = wholeRows.map(\.title) == ["System", "Screenshot", "Chains"]
         check(!model.connectedPluginFootnote.isEmpty, "connected-only footnote present: \"\(model.connectedPluginFootnote)\"")
 
         let panelC = ZStack {
@@ -521,7 +549,7 @@ enum RingTabRenderCheck {
                 stat("frame drift across runloop spins (differing px of \(Int(self.side * 2))²/\(Int(self.side * 2))² per ring panel): A \(pixelDiff(pngA1, pngA2)), B \(pixelDiff(pngB1, pngB2)), C \(pixelDiff(pngC1, pngC2)), C-probe \(pixelDiff(pngCProbe1, pngCProbe2))")
                 self.writeComposite(pngA: pngA2, pngB: pngB2, pngC: pngC2)
                 self.analyze(pngA: pngA2, pngB: pngB2, pngC: pngC2, pngCProbe: pngCProbe2,
-                             layout: layout, k: k)
+                             layout: layout, k: k, chainRowsPresent: chainRowListed)
                 self.finish(defaults: defaults, suiteName: suiteName)
             }
         }
@@ -582,7 +610,7 @@ enum RingTabRenderCheck {
 
     // ---- Pixel analysis (reads the rendered PNG bytes, not the live views) ----
     private static func analyze(pngA: Data, pngB: Data, pngC: Data, pngCProbe: Data,
-                                layout: BladeLayout, k: CGFloat) {
+                                layout: BladeLayout, k: CGFloat, chainRowsPresent: Bool) {
         guard let gridA = PixelGrid(data: pngA), let gridB = PixelGrid(data: pngB),
               let gridC = PixelGrid(data: pngC), let gridProbe = PixelGrid(data: pngCProbe) else {
             fail("could not decode rendered panels for pixel analysis")
@@ -784,8 +812,9 @@ enum RingTabRenderCheck {
         verdict(subsInked.count == SlotEntry.maxPluginChildren && straySubAngles.isEmpty && borderB == 0,
                 "4. sub-wheel open frame: all \(SlotEntry.maxPluginChildren) sub centers inked on the outer band, nothing past the dealt span, border strips clean (\(borderB)px — sub band fits the frame, not clipped)")
         verdict(sectionsComplete(gridC: gridC, headerBands: headerBands.count,
-                                 trailingBands: trailingBands.count, trailingPixels: trailingPixels),
-                "5. picker sections complete: APPS/PLUGINS/FOLDERS headers \(headerBands.count) diff bands, whole-plugin link glyphs \(trailingBands.count) bands/\(trailingPixels)px on trailing edge (code side: titles [Apps, Plugins, Folders], 2 whole rows)")
+                                 trailingBands: trailingBands.count, trailingPixels: trailingPixels,
+                                 chainRowsPresent: chainRowsPresent),
+                "5. picker sections complete: APPS/PLUGINS/FOLDERS headers \(headerBands.count) diff bands, whole-plugin link glyphs \(trailingBands.count) bands/\(trailingPixels)px on trailing edge (code side: titles [Apps, Plugins, Folders], 3 whole rows)")
         verdict(ratioA > 0.05 && ratioB > 0.05 && ratioC > 0.01,
                 "6. histograms non-empty: A \(String(format: "%.1f%%", ratioA * 100)), B \(String(format: "%.1f", ratioB * 100)), C \(String(format: "%.1f", ratioC * 100)) ink")
 
@@ -794,8 +823,9 @@ enum RingTabRenderCheck {
 
     /// Item 5's code+pixel conjunction (kept readable; numbers printed above).
     private static func sectionsComplete(gridC: PixelGrid, headerBands: Int,
-                                         trailingBands: Int, trailingPixels: Int) -> Bool {
-        headerBands == 3 && trailingBands == 2 && trailingPixels >= 24 && gridC.h > 200
+                                         trailingBands: Int, trailingPixels: Int,
+                                         chainRowsPresent: Bool) -> Bool {
+        headerBands == 3 && trailingBands == 3 && trailingPixels >= 36 && gridC.h > 200 && chainRowsPresent
     }
 }
 
@@ -843,6 +873,7 @@ enum RenderCheckBootstrap {
         "-nemoloop.plugin.system.enabled", "YES",
         "-nemoloop.plugin.appearance.enabled", "NO",
         "-nemoloop.plugin.screenshot.enabled", "YES",
+        "-nemoloop.plugin.chain.enabled", "YES",
     ]
 
     /// `swift script.swift` invocation: build the multi-file program and run it.

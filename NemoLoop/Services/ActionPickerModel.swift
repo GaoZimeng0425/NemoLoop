@@ -2,10 +2,13 @@
 import Foundation
 
 /// Where the picker is being used — sub-slots have no whole-plugin mounting,
-/// so the Plugins section there lists ops only.
+/// so the Plugins section there lists ops only; the chain builder is the
+/// same (single actions are the only chain-step kind) and additionally
+/// hides the Chains plugin itself (v1 has no nested chains).
 enum PickerContext {
     case mainSlot
     case subSlot
+    case chainStep
 }
 
 /// One selectable row in the picker. Kind carries everything the caller needs
@@ -117,7 +120,9 @@ struct ActionPickerModel {
         sections.append(PickerSection(title: "Apps", items: filtered(appItems, query: query)))
 
         var pluginItems: [PickerItem] = []
-        for plugin in registry.plugins where registry.isEnabled(plugin.id) {
+        for plugin in registry.plugins
+        where registry.isEnabled(plugin.id) && !plugin.operations.isEmpty {
+            if case .chainStep = context, plugin.id == ChainPlugin.pluginID { continue }
             if context == .mainSlot {
                 pluginItems.append(PickerItem(
                     id: "whole:\(plugin.id)", kind: .wholePlugin(plugin.id),

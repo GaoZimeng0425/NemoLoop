@@ -203,16 +203,15 @@ struct SettingsView: View {
         // each present their own popover when it goes non-nil.
         .popover(item: $pickerSlot) { target in
             ActionPickerPopover(context: target.context,
-                                store: store,
-                                slot: target.index,
+                                onPick: { outcome in pick(outcome, for: target) },
                                 onDismiss: { pickerSlot = nil })
         }
         // Whole-plugin mounts auto-expand their chip row: the point of the
         // mount is the plugin's op fan-out, so it unfolds the moment the pick
-        // lands. The popover's init is pinned (no callback for this), so
-        // react to the config transition instead — any slot whose action just
-        // BECAME a whole-plugin mount expands; re-mounting the same plugin
-        // (no transition) leaves the fold state alone.
+        // lands. Reacting to the config transition (rather than special-casing
+        // the outcome in the pick handler) also covers mounts restored from
+        // disk; re-mounting the same plugin (no transition) leaves the fold
+        // state alone.
         .onChange(of: store.config) { oldConfig, newConfig in
             for (i, entry) in newConfig.slots.enumerated()
             where oldConfig.slots.indices.contains(i) {
@@ -221,6 +220,20 @@ struct SettingsView: View {
                     // withAnimation would surface it as an unused result.
                     withAnimation(.smooth(duration: 0.2)) { _ = expandedSlots.insert(i) }
                 }
+            }
+        }
+    }
+
+    /// Translates picker outcomes into store writes: a main pick REPLACES the
+    /// slot's action, a sub pick APPENDS a child, a whole-plugin pick mounts.
+    private func pick(_ outcome: PickerOutcome, for target: PickerTarget) {
+        switch outcome {
+        case .wholePlugin(let pluginID):
+            store.attachWholePlugin(pluginID, at: target.index)
+        case .action(let action):
+            switch target {
+            case .main: store.setAction(action, at: target.index)
+            case .sub: store.addChild(action, at: target.index)
             }
         }
     }
