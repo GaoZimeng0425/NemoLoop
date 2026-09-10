@@ -106,4 +106,10 @@ struct ChainPluginTests {
         store.update(empty)
         #expect(plugin.operations.count == 2)   // becomes mountable immediately
     }
+
+    @Test func configSectionsExposesTheBuilder() {
+        let plugin = ChainPlugin(store: ChainStore(defaults: makeDefaults()),
+                                 executor: RecordingExecutor())
+        #expect(plugin.configSections != nil)
+    }
 }

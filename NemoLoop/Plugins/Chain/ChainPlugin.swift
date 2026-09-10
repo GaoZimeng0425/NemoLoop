@@ -40,8 +40,7 @@ final class ChainPlugin: @MainActor NemoPlugin {
             .map { Op(definition: $0, executor: executor) }
     }
 
-    /// nil until the chain-builder task wires ChainConfigSection in.
-    var configSections: AnyView? { nil }
+    var configSections: AnyView? { AnyView(ChainConfigSection(store: store)) }
 
     struct Op: @MainActor PluginOp {
         let definition: ChainDefinition
