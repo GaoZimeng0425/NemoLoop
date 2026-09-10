@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkeyService: HotkeyService?
     private var gamepadService: GamepadService?
     private var menuBarController: MenuBarPanelController?
+    private var toastWindowController: ToastWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -31,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let gamepad = GamepadService(summoner: summoner)
         gamepad.start()
         self.gamepadService = gamepad
+
+        let toast = ToastWindowController(service: .shared)
+        self.toastWindowController = toast
 
         let controller = MenuBarPanelController(
             sliceStore: sliceStore,
@@ -57,6 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if CommandLine.arguments.contains("--ocr-test") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 OcrSessionController.shared.handleOcrRequested()
+            }
+        }
+        // Verification affordance: pop one error toast 2s after launch.
+        if CommandLine.arguments.contains("--toast-test") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                ToastService.shared.show(.error, "Toast test: mouse screen, bottom center")
             }
         }
     }
