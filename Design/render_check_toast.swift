@@ -31,6 +31,10 @@
 //     nonisolated; NSApplication.shared is MainActor-isolated), and
 //     Harness.run exits the process DIRECTLY with the verdict code —
 //     NSApp.terminate would end with status 0 and swallow failures.
+//   * The PNG artifact write is wired into the verdict (review finding): a
+//     nil encoding or a thrown write prints a `[VERDICT] FAILED ... png
+//     artifact` line naming the path and makes the run exit non-zero — a
+//     stale/missing PNG must never ship behind exit 0.
 
 import AppKit
 import SwiftUI
@@ -176,7 +180,17 @@ enum Harness {
         let data = cr.nsImage!.tiffRepresentation!
         let out = NSBitmapImageRep(data: data)!
         if let png = out.representation(using: NSBitmapImageRep.FileType.png, properties: [:]) {
-            try? png.write(to: pngURL)
+            do {
+                try png.write(to: pngURL)
+            } catch {
+                // Review finding: a failed artifact write must fail the run —
+                // a stale/missing PNG must never ship behind exit 0.
+                print("[VERDICT] FAILED to write png artifact — \(pngURL.path): \(error)")
+                failures += 1
+            }
+        } else {
+            print("[VERDICT] FAILED to encode png artifact — \(pngURL.path)")
+            failures += 1
         }
 
         print(failures == 0 ? "[VERDICT] all checks passed" : "[VERDICT] \(failures) FAILED")
