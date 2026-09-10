@@ -10,7 +10,7 @@ struct ToastView: View {
 
     var body: some View {
         ZStack {
-            if let toast = service.current {
+            if service.visible, let toast = service.current {
                 capsule(for: toast)
                     .transition(.opacity.combined(with: .offset(y: 6)))
             }

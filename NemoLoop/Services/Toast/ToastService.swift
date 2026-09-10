@@ -63,9 +63,11 @@ final class ToastService {
     /// Later toast wins: replaces immediately and restarts the dismiss
     /// timeline (no queueing — only one capsule is ever on screen).
     func show(_ kind: ToastKind, _ text: String) {
-        current = Toast(kind: kind, text: text)
-        visible = true
-        panelWanted = true
+        withAnimation(.easeOut(duration: fadeDuration)) {
+            current = Toast(kind: kind, text: text)
+            visible = true
+            panelWanted = true
+        }
         restartDismiss(for: kind)
     }
 
