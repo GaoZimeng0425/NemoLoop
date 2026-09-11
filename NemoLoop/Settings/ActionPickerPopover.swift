@@ -48,6 +48,14 @@ struct ActionPickerPopover: View {
         model.sections(context: context, query: query ?? "").flatMap(\.items)
     }
 
+    /// Display rows: section headers interleaved with their items in order.
+    /// Flattened (not nested VStacks) so the LazyVStack can lazily build rows.
+    private var displayRows: [PickerDisplayRow] {
+        model.sections(context: context, query: query ?? "").flatMap { section in
+            [PickerDisplayRow.header(section.title)] + section.items.map(PickerDisplayRow.item)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             LuminareTextField("Search", text: $query)
@@ -57,27 +65,31 @@ struct ActionPickerPopover: View {
                 .onSubmit(submitCursor)
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    // Rows must be DIRECT children of the LazyVStack: a
+                    // per-section VStack defeats laziness (every app row,
+                    // icon load included, materializes at open → scroll
+                    // stall), so sections are flattened into header/item
+                    // sibling rows instead.
+                    LazyVStack(alignment: .leading, spacing: 4) {
                         if apps == nil {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 20)
                         }
-                        // id: \.title (not implicit Identifiable): section titles
-                        // are unique by construction (Apps/Plugins/Folders).
-                        ForEach(model.sections(context: context, query: query ?? ""), id: \.title) { section in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(section.title.uppercased())
+                        ForEach(displayRows) { row in
+                            switch row {
+                            case .header(let title):
+                                Text(title.uppercased())
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                ForEach(section.items) { item in
-                                    PickerRow(item: item,
-                                              isHighlighted: cursor.current?.id == item.id) {
-                                        choose(item)
-                                    }
-                                    // Stable row id so proxy.scrollTo can find it.
-                                    .id(item.id)
+                                    .padding(.top, 8)
+                            case .item(let item):
+                                PickerRow(item: item,
+                                          isHighlighted: cursor.current?.id == item.id) {
+                                    choose(item)
                                 }
+                                // Stable row id so proxy.scrollTo can find it.
+                                .id(item.id)
                             }
                         }
                         Text(model.connectedPluginFootnote)
@@ -186,6 +198,33 @@ struct ActionPickerPopover: View {
     }
 }
 
+/// One lazily-built display row: a section header or a selectable item.
+private enum PickerDisplayRow: Identifiable {
+    case header(String)
+    case item(PickerItem)
+
+    var id: String {
+        switch self {
+        case .header(let title): "header:\(title)"
+        case .item(let item): item.id
+        }
+    }
+}
+
+/// Process-wide icon cache: NSWorkspace icon lookups are too slow to redo
+/// every time LazyVStack materializes a row during scrolling.
+@MainActor
+private enum PickerIconCache {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func icon(forPath path: String) -> NSImage {
+        if let hit = cache.object(forKey: path as NSString) { return hit }
+        let icon = NSWorkspace.shared.icon(forFile: path)
+        cache.setObject(icon, forKey: path as NSString)
+        return icon
+    }
+}
+
 /// One selectable row: real file icon for apps, SF Symbol otherwise, title
 /// over optional subtitle. Whole-plugin rows carry a link glyph — reference
 /// semantics: plugin config changes flow into the whole ring.
@@ -201,7 +240,7 @@ private struct PickerRow: View {
         Button(action: onChoose) {
             HStack(spacing: 8) {
                 if case .app(let entry) = item.kind {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path))
+                    Image(nsImage: PickerIconCache.icon(forPath: entry.url.path))
                         .resizable()
                         .frame(width: 20, height: 20)
                 } else if let symbol = item.symbolName {
