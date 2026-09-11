@@ -174,25 +174,38 @@ final class MenuBarPanelController {
     private func position(panel: Panel) {
         let width = panel.frame.width
         let height = panel.frame.height
-        guard let button = statusItem?.button, let buttonWindow = button.window else {
-            panel.center()
-            return
+        // Pick the screen from the CURSOR: when the icon is clicked on a
+        // secondary display's menu bar, macOS moves the status-item window to
+        // that screen asynchronously, so button.window can still report the
+        // previous screen here — anchoring to it put the panel on the wrong
+        // display. The click just landed under the cursor.
+        let cursor = NSEvent.mouseLocation
+        let cursorScreen = NSScreen.screens.first {
+            NSMouseInRect(cursor, $0.frame, false)
+        } ?? NSScreen.main ?? NSScreen.screens[0]
+        let visible = cursorScreen.visibleFrame
+
+        // Default: hang from the cursor screen's menu bar, right corner.
+        var x = visible.maxX - width - 8
+        var y = visible.maxY - height - 4
+        if let button = statusItem?.button, let buttonWindow = button.window,
+           Self.screenNumber(buttonWindow.screen) == Self.screenNumber(cursorScreen) {
+            let iconRect = buttonWindow.convertToScreen(button.bounds)
+            // macOS force-hides overflow status items by parking them at a
+            // large negative x (bar too full — Sequoia drops them silently).
+            if iconRect.origin.x >= 0 {
+                x = iconRect.midX - width / 2
+                y = iconRect.minY - height - 6
+            }
         }
-        let iconRect = buttonWindow.convertToScreen(button.bounds)
-        let screen = buttonWindow.screen ?? NSScreen.main ?? NSScreen.screens[0]
-        let visible = screen.visibleFrame
-        // macOS force-hides overflow status items by parking them at a large
-        // negative x (bar too full — Sequoia drops them silently). Fall back to
-        // the visible screen's top-right so the panel still lands on screen.
-        if iconRect.origin.x < 0 {
-            panel.setFrameOrigin(NSPoint(x: visible.maxX - width - 8,
-                                         y: visible.maxY - height - 4))
-            return
-        }
-        let x = iconRect.midX - width / 2
-        let y = iconRect.minY - height - 6
         panel.setFrameOrigin(NSPoint(
             x: max(visible.minX + 4, min(x, visible.maxX - width - 4)),
             y: y))
+    }
+
+    /// NSScreen objects aren't pointer-stable across queries; compare by
+    /// CGDirectDisplayID instead.
+    private static func screenNumber(_ screen: NSScreen?) -> CGDirectDisplayID {
+        screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
     }
 }
