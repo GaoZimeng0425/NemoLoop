@@ -1,6 +1,15 @@
 {
-  "originHash" : "6c73579433306628c34afa824cd7db7e80813fad8a4abea89a3e75a5c678e6eb",
+  "originHash" : "4da42f849382e15759c11429da5d357c4565347eb426b6b26e5b06740fce6748",
   "pins" : [
+    {
+      "identity" : "cocoalumberjack",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/CocoaLumberjack/CocoaLumberjack.git",
+      "state" : {
+        "revision" : "c5f2ed4d219866117e135cf648180dc7b66739d3",
+        "version" : "3.9.1"
+      }
+    },
     {
       "identity" : "keyboardshortcuts",
       "kind" : "remoteSourceControl",
@@ -20,12 +29,21 @@
       }
     },
     {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log",
+      "state" : {
+        "revision" : "9c6fb14227f55d8f711ce3847dc2f419fb0ecacb",
+        "version" : "1.15.1"
+      }
+    },
+    {
       "identity" : "swiftui-introspect",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/siteline/swiftui-introspect",
       "state" : {
-        "revision" : "807f73ce09a9b9723f12385e592b4e0aaebd3336",
-        "version" : "1.3.0"
+        "revision" : "91e1357149f1f3b5a451e2de962b12b6b9cbccf1",
+        "version" : "1.3.1"
       }
     },
     {

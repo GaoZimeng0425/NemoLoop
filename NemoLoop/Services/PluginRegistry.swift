@@ -4,7 +4,7 @@ import Observation
 
 /// Registry and enable-state source of truth for built-in plugins. Toggles
 /// drive connect/disconnect; triggering funnels through
-/// perform(pluginID:opID:), where missing/disabled targets just NSLog and
+/// perform(pluginID:opID:), where missing/disabled targets just log and
 /// return — a stale slot action must never crash the ring.
 @MainActor
 @Observable
@@ -58,7 +58,7 @@ final class PluginRegistry {
     /// off = disconnect. Both persist.
     func setEnabled(_ pluginID: String, _ enabled: Bool) async throws {
         guard let plugin = plugin(id: pluginID) else {
-            NSLog("NemoLoop plugin: toggle for unknown plugin \(pluginID)")
+            LogService.warn("toggle for unknown plugin \(pluginID)", category: "Plugin")
             return
         }
         if enabled {
@@ -72,17 +72,17 @@ final class PluginRegistry {
     }
 
     /// Single funnel for every trigger. Returns false when the plugin is
-    /// disabled or the op is unknown (both still just NSLog — a stale slot
+    /// disabled or the op is unknown (both still just log — a stale slot
     /// must never crash the ring); true when the op actually ran. The chain
     /// executor uses the result to abort a failing sequence.
     @discardableResult
     func perform(pluginID: String, opID: String) -> Bool {
         guard isEnabled(pluginID) else {
-            NSLog("NemoLoop plugin: op \(pluginID).\(opID) skipped — plugin disabled")
+            LogService.info("op \(pluginID).\(opID) skipped — plugin disabled", category: "Plugin")
             return false
         }
         guard let op = op(pluginID: pluginID, opID: opID) else {
-            NSLog("NemoLoop plugin: unknown op \(pluginID).\(opID)")
+            LogService.warn("unknown op \(pluginID).\(opID)", category: "Plugin")
             return false
         }
         op.perform()

@@ -71,7 +71,7 @@ final class ChainExecutor: ChainExecuting {
 
     func run(_ chain: ChainDefinition) async {
         guard !runningIDs.contains(chain.id) else {
-            NSLog("NemoLoop chain: '\(chain.name)' already running — retrigger ignored")
+            LogService.info("chain '\(chain.name)' already running — retrigger ignored", category: "Chain")
             return
         }
         runningIDs.insert(chain.id)
@@ -83,7 +83,7 @@ final class ChainExecutor: ChainExecuting {
                     try? await sleeper.sleep(seconds: chain.interStepDelay)
                 }
                 guard performStep(step) else {
-                    NSLog("NemoLoop chain: step \(index + 1) failed — chain '\(chain.name)' aborted")
+                    LogService.error("step \(index + 1) failed — chain '\(chain.name)' aborted", category: "Chain")
                     return
                 }
             }
@@ -96,10 +96,10 @@ final class ChainExecutor: ChainExecuting {
             return registry().perform(pluginID: pluginID, opID: opID)
         case .app(let url), .folder(let url):
             if appOpener.open(url) { return true }
-            NSLog("NemoLoop chain: open failed for \(url.path)")
+            LogService.error("open failed for \(url.path)", category: "Chain")
             return false
         case .plugin:
-            NSLog("NemoLoop chain: whole-plugin mount cannot be a chain step (the builder filters it)")
+            LogService.error("whole-plugin mount cannot be a chain step (the builder filters it)", category: "Chain")
             return false
         }
     }

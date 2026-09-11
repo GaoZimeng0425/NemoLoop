@@ -27,7 +27,7 @@ enum OcrTranslationService {
             }
             return results
         } catch {
-            NSLog("NemoLoop OCR: translation unavailable (\(error.localizedDescription))")
+            LogService.error("translation unavailable (\(error.localizedDescription))", category: "OCR")
             return none
         }
     }

@@ -25,7 +25,7 @@ final class AppearancePlugin: @MainActor NemoPlugin {
         let runner: any ShellRunning
         func perform() {
             do { try runner.run(executable: "/usr/bin/osascript", arguments: ["-e", AppearancePlugin.script]) }
-            catch { NSLog("NemoLoop appearance toggle failed: \(error)") }
+            catch { LogService.error("appearance toggle failed: \(error)", category: "Appearance") }
         }
     }
 

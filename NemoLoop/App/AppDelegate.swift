@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarPanelController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        _ = LogService.shared   // bootstrap the file logger before anything logs
         NSApp.setActivationPolicy(.accessory)
         let summoner = RingSummoner(store: sliceStore,
                                     runningApps: runningAppsService,

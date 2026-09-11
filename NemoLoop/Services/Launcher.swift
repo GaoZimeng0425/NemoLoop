@@ -6,7 +6,7 @@ enum Launcher {
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
-            if let error { NSLog("NemoLoop launch failed for \(url.path): \(error)") }
+            if let error { LogService.error("launch failed for \(url.path): \(error)", category: "Launcher") }
         }
     }
 
@@ -25,7 +25,7 @@ enum Launcher {
             NSWorkspace.shared.open(url)
         case .plugin:
             guard let first = children.first, case let .pluginOp(pluginID, opID) = first else {
-                NSLog("NemoLoop: plugin blade released with no ops — nothing to run")
+                LogService.info("plugin blade released with no ops — nothing to run", category: "Launcher")
                 return
             }
             registry.perform(pluginID: pluginID, opID: opID)
@@ -40,7 +40,7 @@ enum Launcher {
     static func switchTo(app: NSRunningApplication) {
         guard let url = app.bundleURL else {
             if !app.activate() {
-                NSLog("NemoLoop activate failed for \(app.localizedName ?? app.bundleIdentifier ?? "?")")
+                LogService.error("activate failed for \(app.localizedName ?? app.bundleIdentifier ?? "?")", category: "Launcher")
             }
             return
         }
@@ -48,7 +48,7 @@ enum Launcher {
         config.activates = true
         NSWorkspace.shared.openApplication(at: url, configuration: config) { _, error in
             if let error {
-                NSLog("NemoLoop switch to \(url.lastPathComponent) failed (\(error)); falling back to activate")
+                LogService.error("switch to \(url.lastPathComponent) failed (\(error)); falling back to activate", category: "Launcher")
                 Task { @MainActor in _ = app.activate() }
             }
         }
