@@ -65,21 +65,21 @@ final class GamepadService {
 
         GCController.controllers().forEach(attach)
         GCController.startWirelessControllerDiscovery {
-            NSLog("NemoLoop gamepad wireless discovery finished")
+            LogService.info("gamepad wireless discovery finished", category: "Gamepad")
         }
-        NSLog("NemoLoop gamepad monitoring started, \(GCController.controllers().count) connected")
+        LogService.info("gamepad monitoring started, \(GCController.controllers().count) connected", category: "Gamepad")
     }
 
     // MARK: - Connection
 
     private func attach(_ controller: GCController) {
         guard let pad = controller.extendedGamepad else {
-            NSLog("NemoLoop gamepad \(controller.vendorName ?? "?") has no extended profile, ignored")
+            LogService.warn("gamepad \(controller.vendorName ?? "?") has no extended profile, ignored", category: "Gamepad")
             return
         }
         controller.handlerQueue = .main   // handlers below assume the main actor
         isConnected = true
-        NSLog("NemoLoop gamepad connected: \(controller.vendorName ?? "?") (\(controller.productCategory))")
+        LogService.info("gamepad connected: \(controller.vendorName ?? "?") (\(controller.productCategory))", category: "Gamepad")
 
         pad.valueChangedHandler = { [weak self] pad, element in
             MainActor.assumeIsolated { self?.handle(element, on: pad) }
@@ -89,7 +89,7 @@ final class GamepadService {
     private func handleDisconnect(_ note: Notification) {
         let name = (note.object as? GCController)?.vendorName ?? "?"
         isConnected = !GCController.controllers().isEmpty
-        NSLog("NemoLoop gamepad disconnected: \(name), \(GCController.controllers().count) remaining")
+        LogService.info("gamepad disconnected: \(name), \(GCController.controllers().count) remaining", category: "Gamepad")
         if !isConnected {
             leftDirection = .zero
             rightDirection = .zero
@@ -123,7 +123,7 @@ final class GamepadService {
     }
 
     private func summon(_ stick: Stick) {
-        NSLog("NemoLoop gamepad summon \(stick == .left ? "running-apps" : "launcher") ring")
+        LogService.info("gamepad summon \(stick == .left ? "running-apps" : "launcher") ring", category: "Gamepad")
         let input = RingInput.vector(deadZone: Self.deadZone) { [weak self] in
             guard let self else { return .zero }
             return stick == .left ? self.leftDirection : self.rightDirection

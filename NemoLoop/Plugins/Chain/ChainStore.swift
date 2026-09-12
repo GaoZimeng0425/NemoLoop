@@ -34,7 +34,7 @@ final class ChainStore {
     @discardableResult
     func add(_ chain: ChainDefinition) -> Bool {
         guard chains.count < Self.maxChains else {
-            NSLog("NemoLoop chain store: full (\(Self.maxChains)) — add ignored")
+            LogService.warn("chain store: full (\(Self.maxChains)) — add ignored", category: "Chain")
             return false
         }
         chains.append(Self.clamped(chain))

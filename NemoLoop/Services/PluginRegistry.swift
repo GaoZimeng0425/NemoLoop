@@ -58,7 +58,7 @@ final class PluginRegistry {
     /// off = disconnect. Both persist.
     func setEnabled(_ pluginID: String, _ enabled: Bool) async throws {
         guard let plugin = plugin(id: pluginID) else {
-            NSLog("NemoLoop plugin: toggle for unknown plugin \(pluginID)")
+            LogService.warn("toggle for unknown plugin \(pluginID)", category: "Plugin")
             return
         }
         if enabled {
@@ -78,12 +78,12 @@ final class PluginRegistry {
     @discardableResult
     func perform(pluginID: String, opID: String) -> Bool {
         guard isEnabled(pluginID) else {
-            NSLog("NemoLoop plugin: op \(pluginID).\(opID) skipped — plugin disabled")
+            LogService.info("op \(pluginID).\(opID) skipped — plugin disabled", category: "Plugin")
             ToastService.shared.show(.error, "Action unavailable: plugin disabled or removed")
             return false
         }
         guard let op = op(pluginID: pluginID, opID: opID) else {
-            NSLog("NemoLoop plugin: unknown op \(pluginID).\(opID)")
+            LogService.warn("unknown op \(pluginID).\(opID)", category: "Plugin")
             ToastService.shared.show(.error, "Action unavailable: plugin disabled or removed")
             return false
         }

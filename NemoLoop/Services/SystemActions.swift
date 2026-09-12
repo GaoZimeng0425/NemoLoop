@@ -29,7 +29,7 @@ extension SystemAction {
                 return
             }
         }
-        NSLog("NemoLoop: SACLockScreenImmediate unavailable — lock screen action dropped")
+        LogService.error("SACLockScreenImmediate unavailable — lock screen action dropped", category: "System")
     }
 
     private static func runTool(_ path: String, _ arguments: [String]) {

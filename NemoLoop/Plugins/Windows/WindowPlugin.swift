@@ -44,15 +44,15 @@ final class WindowPlugin: NemoPlugin {
 
         func perform() {
             guard service.isTrusted() else {
-                NSLog("NemoLoop windows: \(region.rawValue) skipped — Accessibility not granted")
+                LogService.warn("\(region.rawValue) skipped — Accessibility not granted", category: "Windows")
                 return
             }
             guard let windowFrame = service.focusedWindowFrame() else {
-                NSLog("NemoLoop windows: \(region.rawValue) skipped — no focused window")
+                LogService.info("\(region.rawValue) skipped — no focused window", category: "Windows")
                 return
             }
             guard let screen = Self.screen(containing: windowFrame) else {
-                NSLog("NemoLoop windows: \(region.rawValue) skipped — no screen for window")
+                LogService.warn("\(region.rawValue) skipped — no screen for window", category: "Windows")
                 return
             }
             _ = service.setFrame(region.targetFrame(in: screen.visibleFrame))
@@ -76,7 +76,7 @@ final class WindowPlugin: NemoPlugin {
         let service: any WindowServicing
         func perform() {
             guard service.isTrusted() else {
-                NSLog("NemoLoop windows: minimize skipped — Accessibility not granted")
+                LogService.warn("minimize skipped — Accessibility not granted", category: "Windows")
                 return
             }
             _ = service.setMinimized()
@@ -90,7 +90,7 @@ final class WindowPlugin: NemoPlugin {
         let service: any WindowServicing
         func perform() {
             guard service.isTrusted() else {
-                NSLog("NemoLoop windows: fullscreen skipped — Accessibility not granted")
+                LogService.warn("fullscreen skipped — Accessibility not granted", category: "Windows")
                 return
             }
             _ = service.toggleFullscreen()

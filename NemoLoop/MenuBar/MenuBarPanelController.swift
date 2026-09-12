@@ -174,21 +174,38 @@ final class MenuBarPanelController {
     private func position(panel: Panel) {
         let width = panel.frame.width
         let height = panel.frame.height
-        guard let button = statusItem?.button, let buttonWindow = button.window else {
-            panel.center()
-            return
+
+        // Anchor under the icon USING THE WINDOW THAT RECEIVED THE CLICK.
+        // statusItemClicked runs while NSApp.currentEvent is the click, and
+        // event.window is the status-item window at its true position —
+        // button.window can't be trusted here: macOS relocates it to the
+        // newly-active screen asynchronously (wrong screen when clicked on a
+        // secondary display), and Bartender-style managers park it offscreen.
+        var iconRect = NSRect.zero
+        if let clickWindow = NSApp.currentEvent?.window {
+            iconRect = clickWindow.frame
+        } else if let button = statusItem?.button, let buttonWindow = button.window {
+            iconRect = buttonWindow.convertToScreen(button.bounds)
         }
-        let iconRect = buttonWindow.convertToScreen(button.bounds)
-        let screen = buttonWindow.screen ?? NSScreen.main ?? NSScreen.screens[0]
-        let visible = screen.visibleFrame
-        // macOS force-hides overflow status items by parking them at a large
-        // negative x (bar too full — Sequoia drops them silently). Fall back to
-        // the visible screen's top-right so the panel still lands on screen.
-        if iconRect.origin.x < 0 {
+
+        // The icon's own screen is the one clicked. Parked/hidden items sit
+        // at a large negative x (bar overflow, Bartender) — no screen will
+        // claim them and we fall back to the cursor screen's corner.
+        let iconScreen = NSScreen.screens.first {
+            $0.frame.contains(NSPoint(x: iconRect.midX, y: iconRect.midY))
+        }
+        guard iconRect.origin.x >= 0, let iconScreen else {
+            let cursor = NSEvent.mouseLocation
+            let cursorScreen = NSScreen.screens.first {
+                NSMouseInRect(cursor, $0.frame, false)
+            } ?? NSScreen.main ?? NSScreen.screens[0]
+            let visible = cursorScreen.visibleFrame
             panel.setFrameOrigin(NSPoint(x: visible.maxX - width - 8,
                                          y: visible.maxY - height - 4))
             return
         }
+
+        let visible = iconScreen.visibleFrame
         let x = iconRect.midX - width / 2
         let y = iconRect.minY - height - 6
         panel.setFrameOrigin(NSPoint(

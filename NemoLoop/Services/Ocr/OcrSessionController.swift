@@ -92,7 +92,7 @@ final class OcrSessionController {
                 }
                 showResult(rows: rows, near: rect, screen: screen)
             } catch {
-                NSLog("NemoLoop OCR: failed (\(error))")
+                LogService.error("OCR failed (\(error))", category: "OCR")
                 let detail = String(error.localizedDescription.prefix(48))
                 ToastService.shared.show(.error, "OCR failed: \(detail)")
             }
@@ -105,7 +105,12 @@ final class OcrSessionController {
     private static func capture(rect: CGRect, screen: NSScreen,
                                 excluding excludedWindow: CGWindowID) async throws -> CGImage {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        let display = content.displays.first { $0.frame == screen.frame } ?? content.displays.first
+        // Match by CGDirectDisplayID: frame equality misfires on multi-display
+        // setups where SCDisplay.frame disagrees with NSScreen.frame (units /
+        // scaling), which selected the WRONG display and made sourceRect land
+        // outside it — SCStreamError -3812 "invalid parameter".
+        let screenID = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+        let display = content.displays.first { $0.displayID == screenID } ?? content.displays.first
         guard let display else {
             throw NSError(domain: "OcrSessionController", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "no capturable display"])
@@ -116,21 +121,36 @@ final class OcrSessionController {
         }
         let filter = SCContentFilter(display: display, excludingWindows: excluded)
 
-        // Selection rect is top-left screen-local; SCScreenshot wants a
-        // bottom-left display-local rect.
-        let global = CGRect(x: screen.frame.minX + rect.minX,
-                            y: screen.frame.minY + (screen.frame.height - rect.maxY),
-                            width: rect.width, height: rect.height)
+        // Selection rect is top-left screen-local. Map it PROPORTIONALLY onto
+        // display.frame's size (unit-agnostic), but keep the result
+        // DISPLAY-LOCAL — sourceRect rejects global coordinates and fails
+        // with SCStreamError -3812 "invalid parameter" whenever the display
+        // origin isn't (0,0) (e.g. the external screen at x=-2560).
+        let relX = (rect.minX / screen.frame.width).clamped(to: 0...1)
+        let relY = 1 - (rect.maxY / screen.frame.height).clamped(to: 0...1)
+        let relW = (rect.width / screen.frame.width).clamped(to: 0...1)
+        let relH = (rect.height / screen.frame.height).clamped(to: 0...1)
+        let source = CGRect(x: relX * display.frame.width,
+                            y: relY * display.frame.height,
+                            width: relW * display.frame.width,
+                            height: relH * display.frame.height)
+        guard source.width >= 1, source.height >= 1 else {
+            throw NSError(domain: "OcrSessionController", code: 2,
+                          userInfo: [NSLocalizedDescriptionKey: "degenerate selection rect"])
+        }
+
         let scale = screen.backingScaleFactor
         let config = SCStreamConfiguration()
-        config.sourceRect = CGRect(x: global.minX - display.frame.minX,
-                                   y: global.minY - display.frame.minY,
-                                   width: rect.width, height: rect.height)
-        config.width = Int(rect.width * scale)
-        config.height = Int(rect.height * scale)
+        config.sourceRect = source
+        config.width = max(Int(rect.width * scale), 1)
+        config.height = max(Int(rect.height * scale), 1)
         config.showsCursor = false
-        config.ignoreShadowsSingleWindow = true
+        // ignoreShadowsSingleWindow is a WINDOW-filter-only property; setting
+        // it on a display filter got rejected as an invalid parameter.
         config.captureResolution = .best
+        // .info, not .debug: release builds run at dynamicLogLevel = .info,
+        // so a debug line never reaches the file log when diagnosing deploys.
+        LogService.info("capture source=\(source) px=\(config.width)x\(config.height) display=\(display.displayID) frame=\(display.frame)", category: "OCR")
         return try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
     }
 
@@ -161,6 +181,14 @@ final class OcrSessionController {
         return NSScreen.screens.first { NSMouseInRect(location, $0.frame, false) }
             ?? NSScreen.main
             ?? NSScreen.screens[0]
+    }
+}
+
+private extension CGFloat {
+    /// `min(max(self, range.lowerBound), range.upperBound)` — used by the
+    /// capture source-rect mapping to keep ratios inside the display.
+    func clamped(to range: ClosedRange<CGFloat>) -> CGFloat {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
 
