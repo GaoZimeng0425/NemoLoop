@@ -157,7 +157,7 @@ final class OcrSessionController {
     private func showResult(rows: [OcrResultModel.Row], near rect: CGRect, screen: NSScreen) {
         resultPanel?.close()
         let panel = OcrResultPanel(rows: rows, near: rect, screen: screen)
-        panel.makeKeyAndOrderFront(nil)
+        panel.present()
         resultPanel = panel
     }
 
