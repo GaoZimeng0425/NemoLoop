@@ -1,5 +1,4 @@
 import AppKit
-import Luminare
 import SwiftUI
 
 /// Post-recognition result panel: draggable + resizable chrome that remembers
@@ -55,6 +54,17 @@ final class OcrResultPanel: NSPanel {
     }
 
     override var canBecomeKey: Bool { true }
+
+    /// Fade in instead of appearing at full opacity — a floating panel that
+    /// pops in instantly reads as abrupt next to system chrome.
+    func present() {
+        alphaValue = 0
+        makeKeyAndOrderFront(nil)
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            animator().alphaValue = 1
+        }
+    }
 
     override func cancelOperation(_ sender: Any?) {
         close()
@@ -130,8 +140,11 @@ struct OcrResultView: View {
         .frame(minWidth: 260, minHeight: 140)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
             .fill(.regularMaterial))
+        // Light catches the top edge: a brighter upper stroke over a near-
+        // invisible lower one reads as a lit material, not a flat outline.
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .strokeBorder(.white.opacity(0.10)))
+            .strokeBorder(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.04)],
+                                          startPoint: .top, endPoint: .bottom)))
     }
 
     /// The drag affordance: grip + title live on window-background area, so
@@ -153,28 +166,14 @@ struct OcrResultView: View {
                 .padding(.vertical, 2)
                 .background(Capsule().fill(Color.primary.opacity(0.06)))
             Spacer()
-            Button {
+            HeaderIconButton(icon: justCopied ? "checkmark" : "doc.on.doc",
+                             tint: justCopied ? .green : .secondary,
+                             help: "Copy selected lines") {
                 copySelected()
-            } label: {
-                Image(systemName: justCopied ? "checkmark" : "doc.on.doc")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(justCopied ? Color.green : .secondary)
-                    .frame(width: 24, height: 22)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help("Copy selected lines")
-            Button {
+            HeaderIconButton(icon: "xmark", help: "Close (Esc)") {
                 onClose()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 24, height: 22)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help("Close (Esc)")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -215,6 +214,32 @@ struct OcrResultView: View {
     }
 }
 
+/// Header icon button with a hover highlight — a plain button gave no
+/// feedback until commit, which reads as dead under the pointer.
+private struct HeaderIconButton: View {
+    let icon: String
+    var tint: Color = .secondary
+    let help: String
+    let action: () -> Void
+
+    @State private var hovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(tint)
+                .frame(width: 24, height: 22)
+                .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(hovered ? 0.10 : 0)))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovered = $0 }
+        .help(help)
+    }
+}
+
 private struct OcrResultRowView: View {
     @Binding var row: OcrResultModel.Row
     var isHovered: Bool
@@ -224,7 +249,7 @@ private struct OcrResultRowView: View {
             Image(systemName: row.isSelected ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 14))
                 .foregroundStyle(row.isSelected
-                    ? AnyShapeStyle(Color.accentColor)
+                    ? AnyShapeStyle(.tint)
                     : AnyShapeStyle(.tertiary))
                 .onTapGesture { toggle() }
             VStack(alignment: .leading, spacing: 3) {
