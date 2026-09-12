@@ -174,38 +174,42 @@ final class MenuBarPanelController {
     private func position(panel: Panel) {
         let width = panel.frame.width
         let height = panel.frame.height
-        // Pick the screen from the CURSOR: when the icon is clicked on a
-        // secondary display's menu bar, macOS moves the status-item window to
-        // that screen asynchronously, so button.window can still report the
-        // previous screen here — anchoring to it put the panel on the wrong
-        // display. The click just landed under the cursor.
-        let cursor = NSEvent.mouseLocation
-        let cursorScreen = NSScreen.screens.first {
-            NSMouseInRect(cursor, $0.frame, false)
-        } ?? NSScreen.main ?? NSScreen.screens[0]
-        let visible = cursorScreen.visibleFrame
 
-        // Default: hang from the cursor screen's menu bar, right corner.
-        var x = visible.maxX - width - 8
-        var y = visible.maxY - height - 4
-        if let button = statusItem?.button, let buttonWindow = button.window,
-           Self.screenNumber(buttonWindow.screen) == Self.screenNumber(cursorScreen) {
-            let iconRect = buttonWindow.convertToScreen(button.bounds)
-            // macOS force-hides overflow status items by parking them at a
-            // large negative x (bar too full — Sequoia drops them silently).
-            if iconRect.origin.x >= 0 {
-                x = iconRect.midX - width / 2
-                y = iconRect.minY - height - 6
-            }
+        // Anchor under the icon USING THE WINDOW THAT RECEIVED THE CLICK.
+        // statusItemClicked runs while NSApp.currentEvent is the click, and
+        // event.window is the status-item window at its true position —
+        // button.window can't be trusted here: macOS relocates it to the
+        // newly-active screen asynchronously (wrong screen when clicked on a
+        // secondary display), and Bartender-style managers park it offscreen.
+        var iconRect = NSRect.zero
+        if let clickWindow = NSApp.currentEvent?.window {
+            iconRect = clickWindow.frame
+        } else if let button = statusItem?.button, let buttonWindow = button.window {
+            iconRect = buttonWindow.convertToScreen(button.bounds)
         }
+
+        // The icon's own screen is the one clicked. Parked/hidden items sit
+        // at a large negative x (bar overflow, Bartender) — no screen will
+        // claim them and we fall back to the cursor screen's corner.
+        let iconScreen = NSScreen.screens.first {
+            $0.frame.contains(NSPoint(x: iconRect.midX, y: iconRect.midY))
+        }
+        guard iconRect.origin.x >= 0, let iconScreen else {
+            let cursor = NSEvent.mouseLocation
+            let cursorScreen = NSScreen.screens.first {
+                NSMouseInRect(cursor, $0.frame, false)
+            } ?? NSScreen.main ?? NSScreen.screens[0]
+            let visible = cursorScreen.visibleFrame
+            panel.setFrameOrigin(NSPoint(x: visible.maxX - width - 8,
+                                         y: visible.maxY - height - 4))
+            return
+        }
+
+        let visible = iconScreen.visibleFrame
+        let x = iconRect.midX - width / 2
+        let y = iconRect.minY - height - 6
         panel.setFrameOrigin(NSPoint(
             x: max(visible.minX + 4, min(x, visible.maxX - width - 4)),
             y: y))
-    }
-
-    /// NSScreen objects aren't pointer-stable across queries; compare by
-    /// CGDirectDisplayID instead.
-    private static func screenNumber(_ screen: NSScreen?) -> CGDirectDisplayID {
-        screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
     }
 }
