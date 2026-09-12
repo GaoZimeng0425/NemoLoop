@@ -24,6 +24,7 @@ struct ToastView: View {
             Image(systemName: icon(toast.kind))
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(iconColor(toast.kind))
+                .symbolEffect(.bounce, value: toast)
             Text(toast.text)
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(.white)
@@ -34,8 +35,13 @@ struct ToastView: View {
         .fixedSize()
         .background(.black.opacity(0.85))
         .clipShape(Capsule())
-        .overlay(Capsule().stroke(.white.opacity(0.15), lineWidth: 0.5))
-        .shadow(color: .black.opacity(0.5), radius: 12, y: 6)
+        // Light catches the top edge: a brighter upper stroke over a near-
+        // invisible lower one reads as a lit capsule, not a flat outline.
+        .overlay(Capsule().strokeBorder(
+            LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0.06)],
+                           startPoint: .top, endPoint: .bottom),
+            lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.4), radius: 14, y: 7)
     }
 
     private func icon(_ kind: ToastKind) -> String {
@@ -49,7 +55,9 @@ struct ToastView: View {
     private func iconColor(_ kind: ToastKind) -> Color {
         switch kind {
         case .success: .green
-        case .error: .red
+        // System red sits too dark on the black fill (r1.0 g0.23 b0.19);
+        // this lift keeps the error glyph readable at HUD contrast.
+        case .error: Color(red: 1.0, green: 0.42, blue: 0.40)
         case .info: .white.opacity(0.7)
         }
     }
